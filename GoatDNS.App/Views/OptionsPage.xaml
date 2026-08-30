@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GoatDNS.App.Views.OptionsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Padding="20" Spacing="16" MaxWidth="640" HorizontalAlignment="Left">
+            <TextBlock Text="Options" Style="{StaticResource TitleTextBlockStyle}" />
+
+            <StackPanel Spacing="4">
+                <InfoBar IsOpen="{x:Bind ViewModel.StatusShowInfo, Mode=OneWay}" IsClosable="True" Severity="Success" Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+                <InfoBar IsOpen="{x:Bind ViewModel.StatusShowError, Mode=OneWay}" IsClosable="True" Severity="Error" Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+            </StackPanel>
+
+            <!-- Interception -->
+            <TextBlock Text="Interception" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <ToggleSwitch Header="Enabled (persisted default)" IsOn="{x:Bind ViewModel.Enabled, Mode=TwoWay}" />
+            <NumberBox
+                Header="Listen port"
+                Minimum="1" Maximum="65535"
+                SpinButtonPlacementMode="Compact"
+                Value="{x:Bind ViewModel.ListenPortValue, Mode=TwoWay}" />
+            <ComboBox
+                Header="Block response"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{x:Bind ViewModel.BlockResponseOptions}"
+                SelectedItem="{x:Bind ViewModel.BlockResponse, Mode=TwoWay}" />
+
+            <!-- Logging -->
+            <TextBlock Text="Logging" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <ComboBox
+                Header="Screen verbosity"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{x:Bind ViewModel.VerbosityOptions}"
+                SelectedItem="{x:Bind ViewModel.ScreenVerbosity, Mode=TwoWay}" />
+            <ComboBox
+                Header="File verbosity"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{x:Bind ViewModel.VerbosityOptions}"
+                SelectedItem="{x:Bind ViewModel.FileVerbosity, Mode=TwoWay}" />
+            <TextBox Header="Log file path (optional)" Text="{x:Bind ViewModel.LogFilePath, Mode=TwoWay}" />
+            <Button Content="Browse…" Click="BrowseLog_Click" />
+
+            <!-- Startup -->
+            <TextBlock Text="Startup" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <ToggleSwitch Header="Start GoatDNS with Windows" IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" />
+
+            <!-- Config file -->
+            <TextBlock Text="Configuration file" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Import…" Click="Import_Click" />
+                <Button Content="Export…" Click="Export_Click" />
+            </StackPanel>
+            <TextBlock
+                Opacity="0.7"
+                TextWrapping="Wrap"
+                Text="Import loads a config into the editor; it isn't sent to the service until you Apply." />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

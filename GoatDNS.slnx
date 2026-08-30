@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="GoatDNS.App/GoatDNS.App.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="GoatDNS.Core/GoatDNS.Core.csproj" />
+  <Project Path="GoatDNS.Ebpf/GoatDNS.Ebpf.csproj" />
+  <Project Path="GoatDNS.Service/GoatDNS.Service.csproj" />
+  <Project Path="GoatDNS.Tests/GoatDNS.Tests.csproj" />
+</Solution>

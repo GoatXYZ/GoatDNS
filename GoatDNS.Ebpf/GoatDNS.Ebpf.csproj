@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Windows-flavored TFM: P/Invoke into ebpfapi.dll + System.Diagnostics.Process are Windows-only. -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <RootNamespace>GoatDNS.Ebpf</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Whole product is Windows-only; the platform-guard analyzer has nothing to add. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GoatDNS.Core\GoatDNS.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Native artifacts are produced on Windows by clang/bpf2c (see ebpf/goatdns_redirect.c
+         and README.md). Wildcards so the build never fails just because the .o/.sys aren't
+         present yet on a given machine; the source + notes always ship for reference. -->
+    <None Include="ebpf\*.o" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ebpf\*.sys" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ebpf\goatdns_redirect.c" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="README.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

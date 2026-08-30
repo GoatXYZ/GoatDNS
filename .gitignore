@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+artifacts/
+*.binlog
+PLAN.md

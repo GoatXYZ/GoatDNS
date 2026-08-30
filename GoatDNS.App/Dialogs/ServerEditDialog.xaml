@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="GoatDNS.App.Dialogs.ServerEditDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Server"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="520">
+        <StackPanel Width="440" Spacing="10">
+            <TextBox Header="Name" Text="{x:Bind ViewModel.Name, Mode=TwoWay}" />
+
+            <ComboBox
+                Header="Protocol"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{x:Bind ViewModel.ProtocolOptions}"
+                SelectedItem="{x:Bind ViewModel.Protocol, Mode=TwoWay}" />
+
+            <TextBox
+                Header="Address (ip or ip:port)"
+                Text="{x:Bind ViewModel.Address, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowAddress, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="URL"
+                Text="{x:Bind ViewModel.Url, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowUrl, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="TLS hostname"
+                Text="{x:Bind ViewModel.Hostname, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowHostname, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="Bootstrap address (IP to reach the hostname)"
+                Text="{x:Bind ViewModel.BootstrapAddress, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowBootstrap, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <ToggleSwitch
+                Header="Use HTTP/3"
+                IsOn="{x:Bind ViewModel.UseHttp3, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowHttp3, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="TLS pins (one base64 SHA-256 SPKI per line)"
+                AcceptsReturn="True"
+                TextWrapping="Wrap"
+                Height="90"
+                Text="{x:Bind ViewModel.TlsPinsText, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowTlsPins, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="DNSCrypt provider name"
+                Text="{x:Bind ViewModel.ProviderName, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowDnsCrypt, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="DNSCrypt provider public key (hex)"
+                Text="{x:Bind ViewModel.PublicKeyHex, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowDnsCrypt, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox
+                Header="Anonymization relay address (ip:port)"
+                Text="{x:Bind ViewModel.RelayAddress, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.ShowDnsCrypt, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBox Header="Bind to interface (optional)" Text="{x:Bind ViewModel.BindInterface, Mode=TwoWay}" />
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>
