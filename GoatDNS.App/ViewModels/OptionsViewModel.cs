@@ -13,6 +13,9 @@ public partial class OptionsViewModel : ObservableObject
 {
     private readonly MainViewModel _main;
 
+    /// <summary>Parent VM, exposed so the Options page can bind the Windows-service control commands.</summary>
+    public MainViewModel Main => _main;
+
     public OptionsViewModel(MainViewModel main)
     {
         _main = main;

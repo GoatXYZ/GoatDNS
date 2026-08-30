@@ -25,13 +25,19 @@
             <ProgressRing Width="18" Height="18" IsActive="{x:Bind ViewModel.IsTesting, Mode=OneWay}" VerticalAlignment="Center" />
         </StackPanel>
 
-        <!-- Import from an sdns:// stamp -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-            <TextBox
-                Width="460"
-                PlaceholderText="sdns://…"
-                Text="{x:Bind ViewModel.StampInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <Button Content="Import from stamp" Command="{x:Bind ViewModel.ImportStampCommand}" VerticalAlignment="Bottom" />
+        <!-- Import: from an sdns:// stamp, or from the bundled (vendored + rehosted) resolver lists -->
+        <StackPanel Grid.Row="2" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox
+                    Width="460"
+                    PlaceholderText="sdns://…"
+                    Text="{x:Bind ViewModel.StampInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Content="Import from stamp" Command="{x:Bind ViewModel.ImportStampCommand}" VerticalAlignment="Bottom" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Import starter list" Command="{x:Bind ViewModel.ImportStarterCommand}" />
+                <Button Content="Import public resolvers" Command="{x:Bind ViewModel.ImportPublicResolversCommand}" />
+            </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Row="3" Spacing="4">

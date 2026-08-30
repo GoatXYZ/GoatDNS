@@ -46,6 +46,18 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private bool _isBusy;
 
+    /// <summary>Windows-service install/run state ("Not installed" / "Stopped" / "Running"), shown in Options.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ServiceInstalled))]
+    [NotifyPropertyChangedFor(nameof(ServiceRunning))]
+    private string _serviceStateText = "Checking…";
+
+    /// <summary>True when this app is already admin, so service actions skip the UAC prompt.</summary>
+    public bool IsElevated => ServiceControl.IsElevated;
+
+    public bool ServiceInstalled => ServiceStateText is "Stopped" or "Running";
+    public bool ServiceRunning => ServiceStateText == "Running";
+
     /// <summary>Last error from Apply/Reload/Toggle, surfaced in a closable InfoBar.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
@@ -83,6 +95,15 @@ public partial class MainViewModel : ObservableObject
 
     private async Task RefreshStatusAsync()
     {
+        // sc.exe query is blocking; keep it off the UI thread. Back on the UI context after await.
+        ServiceStateText = await Task.Run(() => ServiceControl.Query()) switch
+        {
+            Services.ServiceState.NotInstalled => "Not installed",
+            Services.ServiceState.Stopped => "Stopped",
+            Services.ServiceState.Running => "Running",
+            _ => "Unknown",
+        };
+
         try
         {
             var status = await Ipc.GetStatusAsync();
@@ -203,4 +224,30 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void DismissError() => LastError = null;
+
+    // ---- Windows service control (self-elevates via UAC when the app isn't already admin) ----
+
+    [RelayCommand] private Task StartService() => RunServiceActionAsync("start");
+    [RelayCommand] private Task StopService() => RunServiceActionAsync("stop");
+    [RelayCommand] private Task RestartService() => RunServiceActionAsync("restart");
+    [RelayCommand] private Task InstallService() => RunServiceActionAsync("install");
+    [RelayCommand] private Task UninstallService() => RunServiceActionAsync("uninstall");
+
+    private async Task RunServiceActionAsync(string action)
+    {
+        LastError = null;
+        IsBusy = true;
+        try
+        {
+            // EnsureAction blocks (it may spawn an elevated child and wait for the UAC flow).
+            var (ok, message) = await Task.Run(() => ServiceControl.EnsureAction(action));
+            if (!ok) LastError = message;
+            await Task.Delay(500); // give the SCM a moment to settle before we re-query
+            await RefreshStatusAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 }

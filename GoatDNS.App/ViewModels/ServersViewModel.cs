@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GoatDNS.Core.Config;
+using GoatDNS.Core.Import;
 using GoatDNS.Core.Stamps;
 
 namespace GoatDNS.App.ViewModels;
@@ -121,6 +122,39 @@ public partial class ServersViewModel : ObservableObject
             Selected = vm;
             StampInput = "";
             ShowResult($"Imported '{vm.Name}'. Review, then Apply.", isError: false);
+        }
+        catch (Exception ex)
+        {
+            ShowResult(ex.Message, isError: true);
+        }
+    }
+
+    // ---- Bundled resolver-list import (vendored + rehosted by us; work fully offline) ----
+
+    [RelayCommand] private Task ImportStarter() => ImportBundledAsync("starter.md", "starter list");
+    [RelayCommand] private Task ImportPublicResolvers() => ImportBundledAsync("public-resolvers.md", "public resolvers list");
+
+    private async Task ImportBundledAsync(string file, string label)
+    {
+        try
+        {
+            var result = await Task.Run(() => ServerImporter.ImportFromBundled(file));
+            if (result.Servers.Count == 0)
+            {
+                ShowResult($"No entries found — is resolvers\\{file} present next to the app?", isError: true);
+                return;
+            }
+
+            var existing = Items.Select(i => i.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            int added = 0;
+            foreach (var def in result.Servers)
+            {
+                if (!existing.Add(def.Name)) continue; // skip names already in the working list
+                Items.Add(new ServerItemViewModel(def));
+                added++;
+            }
+            Selected ??= Items.FirstOrDefault();
+            ShowResult($"Imported {added} server(s) from the {label}. Review, then Apply.", isError: false);
         }
         catch (Exception ex)
         {

@@ -44,19 +44,23 @@
                 </ListView.ItemTemplate>
             </ListView>
 
-            <!-- Inline editor for the selected entry. -->
-            <StackPanel Grid.Column="1" Spacing="10" IsEnabled="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
-                <TextBox Header="Name" Text="{x:Bind ViewModel.Selected.Name, Mode=TwoWay}" />
+            <!-- Inline editor for the selected entry. IsEnabled lives on a ContentControl because
+                 StackPanel (a Panel, not a Control) has no IsEnabled in WinUI. -->
+            <ContentControl Grid.Column="1" IsEnabled="{x:Bind ViewModel.HasSelection, Mode=OneWay}"
+                            HorizontalContentAlignment="Stretch" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                    <TextBox Header="Name" Text="{x:Bind ViewModel.Selected.Name, Mode=TwoWay}" />
 
-                <TextBox Header="Path" IsReadOnly="True" Text="{x:Bind ViewModel.Selected.Path, Mode=OneWay}" />
-                <Button Content="Browse…" Click="Browse_Click" />
+                    <TextBox Header="Path" IsReadOnly="True" Text="{x:Bind ViewModel.Selected.Path, Mode=OneWay}" />
+                    <Button Content="Browse…" Click="Browse_Click" />
 
-                <ComboBox
-                    Header="Mode"
-                    HorizontalAlignment="Stretch"
-                    ItemsSource="{x:Bind ViewModel.ModeOptions}"
-                    SelectedItem="{x:Bind ViewModel.Selected.Mode, Mode=TwoWay}" />
-            </StackPanel>
+                    <ComboBox
+                        Header="Mode"
+                        HorizontalAlignment="Stretch"
+                        ItemsSource="{x:Bind ViewModel.ModeOptions}"
+                        SelectedItem="{x:Bind ViewModel.Selected.Mode, Mode=TwoWay}" />
+                </StackPanel>
+            </ContentControl>
         </Grid>
     </Grid>
 </Page>

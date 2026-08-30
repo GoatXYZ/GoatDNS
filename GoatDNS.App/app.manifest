@@ -9,6 +9,10 @@
     </application>
   </compatibility>
 
+  <!-- No requestedExecutionLevel: the default is asInvoker, so the app runs unelevated and
+       self-elevates only the service-control helper child on demand (UAC). Declaring it
+       explicitly here conflicts with the WindowsAppSDK manifest merge (mt.exe), so we omit it. -->
+
   <!-- Per-monitor-v2 DPI so WinUI renders crisply on mixed-DPI setups. -->
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>

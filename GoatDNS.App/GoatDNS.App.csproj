@@ -19,8 +19,16 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
     <!-- Windows-only product; platform-guard analyzer noise isn't actionable here (matches Core/Service). -->
-    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <!-- MVVMTK0045: [ObservableProperty]-on-field AOT advisory; we don't ship NativeAOT, so it's noise. -->
+    <NoWarn>$(NoWarn);CA1416;MVVMTK0045</NoWarn>
+    <!-- Custom entry point (Program.cs) so we can run the elevated service helper before booting WinUI. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Vendored + rehosted resolver lists, bundled so imports work fully offline. -->
+    <Content Include="..\resolvers\*.md" Link="resolvers\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
