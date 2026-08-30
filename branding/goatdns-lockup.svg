@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">GoatDNS logo</title>
+  <desc id="desc">The amber GoatDNS wireframe goat mark beside the amber GoatDNS wordmark on black.</desc>
+  <rect width="1200" height="360" rx="44" fill="#000000"/>
+  <g transform="translate(22 20) scale(.625)">
+    <g fill="none" stroke="#FF9F1C" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M236 182 L181 82 L101 54 L151 131 L172 222"/>
+      <path d="M276 182 L331 82 L411 54 L361 131 L340 222"/>
+      <path d="M172 222 L121 192 L66 201 L113 252 L158 245"/>
+      <path d="M340 222 L391 192 L446 201 L399 252 L354 245"/>
+      <path d="M172 222 L236 182 L256 196 L276 182 L340 222"/>
+      <path d="M172 222 L154 261 L176 352 L214 418 L256 440 L298 418 L336 352 L358 261 L340 222"/>
+      <path d="M256 196 L256 405"/>
+      <path d="M234 388 L256 405 L278 388"/>
+      <path d="M194 282 L222 291"/>
+      <path d="M318 282 L290 291"/>
+    </g>
+    <g fill="#FF9F1C">
+      <circle cx="256" cy="196" r="12"/>
+      <circle cx="172" cy="222" r="10"/>
+      <circle cx="340" cy="222" r="10"/>
+      <circle cx="256" cy="405" r="12"/>
+    </g>
+  </g>
+  <text x="350" y="228" fill="#FF9F1C" font-family="Segoe UI Variable Display, Segoe UI, system-ui, sans-serif" font-size="152" font-weight="650" letter-spacing="-5">GoatDNS</text>
+</svg>

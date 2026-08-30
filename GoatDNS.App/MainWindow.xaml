@@ -114,11 +114,9 @@
             x:Name="TrayIcon"
             Grid.Row="2"
             ToolTipText="GoatDNS"
+            IconSource="/Assets/goatdns-app-icon.ico"
             ContextMenuMode="SecondWindow"
             LeftClickCommand="{x:Bind ShowFromTrayCommand}">
-            <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource Text="G" Foreground="White" Background="#2E7D32" FontSize="28" FontWeight="Bold" />
-            </tb:TaskbarIcon.IconSource>
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem

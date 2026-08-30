@@ -1,5 +1,7 @@
 # GoatDNS
 
+![GoatDNS wireframe goat logo](branding/goatdns-lockup.svg)
+
 A system-wide encrypted DNS client for Windows. GoatDNS intercepts **all** DNS traffic on the machine — from every app and the OS resolver — with no adapter reconfiguration, and resolves it through DNS servers you choose over modern encrypted protocols, governed by an ordered rules engine.
 
 Built on **.NET 10**, **WinUI 3** (Windows App SDK), and **WinDivert** (a signed WFP driver) for interception.

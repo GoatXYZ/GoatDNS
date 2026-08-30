@@ -17,6 +17,7 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\branding\exports\goatdns-app-icon.ico</ApplicationIcon>
 
     <!-- Windows-only product; platform-guard analyzer noise isn't actionable here (matches Core/Service). -->
     <!-- MVVMTK0045: [ObservableProperty]-on-field AOT advisory; we don't ship NativeAOT, so it's noise. -->
@@ -28,6 +29,7 @@
   <ItemGroup>
     <!-- Vendored + rehosted resolver lists, bundled so imports work fully offline. -->
     <Content Include="..\resolvers\*.md" Link="resolvers\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\branding\exports\goatdns-app-icon.ico" Link="Assets\goatdns-app-icon.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
