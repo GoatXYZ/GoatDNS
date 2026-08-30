@@ -18,6 +18,7 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
             <Button Content="Add" Click="Add_Click" />
             <Button Content="Edit" Click="Edit_Click" />
+            <Button Content="Clone" Command="{x:Bind ViewModel.CloneCommand}" />
             <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
             <AppBarSeparator />
             <Button Command="{x:Bind ViewModel.MoveUpCommand}" ToolTipService.ToolTip="Move up">
@@ -34,28 +35,63 @@
             TextWrapping="Wrap"
             Text="Rules are evaluated top-to-bottom. The last rule is the catch-all default and stays pinned last." />
 
-        <ListView
-            Grid.Row="3"
-            SelectionMode="Single"
-            ItemsSource="{x:Bind ViewModel.Items}"
-            SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
-            DoubleTapped="List_DoubleTapped"
-            BorderThickness="1"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="vm:RuleItemViewModel">
-                    <Grid Padding="4,6" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="220" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" MinWidth="0" IsChecked="{x:Bind Enabled, Mode=TwoWay}" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="2" Text="{x:Bind Summary, Mode=OneWay}" Opacity="0.7" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+        <!-- Columned table: ✓ · Rule · Hostnames · Action · DNS server. -->
+        <Border Grid.Row="3" BorderThickness="1" CornerRadius="4"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12"
+                      Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                      BorderThickness="0,0,0,1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="1.6*" />
+                        <ColumnDefinition Width="2.4*" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="1.4*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1" Text="Rule" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <TextBlock Grid.Column="2" Text="Hostnames" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <TextBlock Grid.Column="3" Text="Action" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <TextBlock Grid.Column="4" Text="DNS server" Style="{StaticResource ColumnHeaderTextStyle}" />
+                </Grid>
+
+                <ListView
+                    Grid.Row="1"
+                    SelectionMode="Single"
+                    ItemsSource="{x:Bind ViewModel.Items}"
+                    SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
+                    DoubleTapped="List_DoubleTapped">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RuleItemViewModel">
+                            <Grid Padding="12,8" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="1.6*" />
+                                    <ColumnDefinition Width="2.4*" />
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="1.4*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" MinWidth="0" IsChecked="{x:Bind Enabled, Mode=TwoWay}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="{x:Bind HostsSummary, Mode=OneWay}" Opacity="0.7" VerticalAlignment="Center" FontFamily="Consolas" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="3" Text="{x:Bind ActionLabel, Mode=OneWay}" Opacity="0.85" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="4" Text="{x:Bind TargetLabel, Mode=OneWay}" Opacity="0.7" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Border>
     </Grid>
 </Page>

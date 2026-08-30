@@ -12,7 +12,7 @@ namespace GoatDNS.App.ViewModels;
 public partial class PoolItemViewModel : ObservableObject
 {
     [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))] private string _name = "New Pool";
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))] private PoolStrategy _strategy = PoolStrategy.Failover;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))][NotifyPropertyChangedFor(nameof(StrategyLabel))] private PoolStrategy _strategy = PoolStrategy.Failover;
 
     /// <summary>Persisted server-name membership.</summary>
     public List<string> Servers { get; private set; } = [];
@@ -21,6 +21,11 @@ public partial class PoolItemViewModel : ObservableObject
     public ObservableCollection<SelectableItem> ServerChoices { get; } = [];
 
     public IReadOnlyList<PoolStrategy> StrategyOptions { get; } = Enum.GetValues<PoolStrategy>();
+
+    public string StrategyLabel => Strategy.ToString();
+
+    /// <summary>Comma-joined member names for the Members column.</summary>
+    public string MembersLabel => Servers.Count == 0 ? "(none)" : string.Join(", ", Servers);
 
     public string Summary => $"{Strategy} · {Servers.Count} server(s)";
 
@@ -48,6 +53,7 @@ public partial class PoolItemViewModel : ObservableObject
     {
         Servers = ServerChoices.Where(c => c.IsSelected).Select(c => c.Name).ToList();
         OnPropertyChanged(nameof(Summary));
+        OnPropertyChanged(nameof(MembersLabel));
     }
 
     public PoolDefinition ToModel() => new()

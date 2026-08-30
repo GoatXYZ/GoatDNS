@@ -83,9 +83,22 @@ public partial class RulesViewModel : ObservableObject
         }
     }
 
+    /// <summary>Duplicates the selected rule, inserting the copy just above the pinned default.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void Clone()
+    {
+        if (Selected is not { } s) return;
+        var copy = s.Clone();
+        copy.Name = s.Name + " (copy)";
+        int at = Items.Count > 0 ? Items.Count - 1 : 0; // keep the default rule last
+        Items.Insert(at, copy);
+        Selected = copy;
+    }
+
     private void RefreshCommands()
     {
         DeleteCommand.NotifyCanExecuteChanged();
+        CloneCommand.NotifyCanExecuteChanged();
         MoveUpCommand.NotifyCanExecuteChanged();
         MoveDownCommand.NotifyCanExecuteChanged();
     }

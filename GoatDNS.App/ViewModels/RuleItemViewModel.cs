@@ -13,7 +13,7 @@ public partial class RuleItemViewModel : ObservableObject
 {
     [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))] private string _name = "New Rule";
     [ObservableProperty] private bool _enabled = true;
-    [ObservableProperty] private string _hostsText = "";
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(HostsSummary))] private string _hostsText = "";
     [ObservableProperty] private string _processesText = "";
     [ObservableProperty] private string? _interfaceName;
     [ObservableProperty] private bool _ignoreWhenInterfaceDown;
@@ -21,9 +21,11 @@ public partial class RuleItemViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Summary))]
     [NotifyPropertyChangedFor(nameof(ShowPool))]
+    [NotifyPropertyChangedFor(nameof(ActionLabel))]
+    [NotifyPropertyChangedFor(nameof(TargetLabel))]
     private RuleActionType _action = RuleActionType.Process;
 
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))] private string? _pool;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))][NotifyPropertyChangedFor(nameof(TargetLabel))] private string? _pool;
     [ObservableProperty] private DnssecMode _dnssec = DnssecMode.Off;
 
     /// <summary>Persisted hosts-file references (by name).</summary>
@@ -40,6 +42,25 @@ public partial class RuleItemViewModel : ObservableObject
 
     /// <summary>The pool target only applies to the Process action.</summary>
     public bool ShowPool => Action == RuleActionType.Process;
+
+    /// <summary>One-line hostnames summary for the Rules table (patterns plus any hosts-file count).</summary>
+    public string HostsSummary
+    {
+        get
+        {
+            var patterns = string.Join("; ", TextLists.Split(HostsText));
+            if (HostsFiles.Count == 0) return patterns.Length > 0 ? patterns : "(any)";
+            var files = $"{HostsFiles.Count} hosts file{(HostsFiles.Count == 1 ? "" : "s")}";
+            return patterns.Length > 0 ? $"{patterns}  (+{files})" : files;
+        }
+    }
+
+    public string ActionLabel => Action.ToString();
+
+    /// <summary>The DNS-server/pool column: the target pool for Process rules, otherwise a dash.</summary>
+    public string TargetLabel => Action == RuleActionType.Process
+        ? (string.IsNullOrEmpty(Pool) ? "(default)" : Pool!)
+        : "—";
 
     public string Summary => ShowPool && Pool is { Length: > 0 }
         ? $"{Action} → {Pool}"

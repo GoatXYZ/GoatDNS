@@ -53,26 +53,56 @@
                 Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}" />
         </StackPanel>
 
-        <ListView
-            Grid.Row="4"
-            SelectionMode="Single"
-            ItemsSource="{x:Bind ViewModel.Items}"
-            SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
-            DoubleTapped="List_DoubleTapped"
-            BorderThickness="1"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="vm:ServerItemViewModel">
-                    <Grid Padding="4,6" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="220" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind Summary, Mode=OneWay}" Opacity="0.7" TextTrimming="CharacterEllipsis" />
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+        <!-- Columned table: Name · Protocol · Address/URL. -->
+        <Border Grid.Row="4" BorderThickness="1" CornerRadius="4"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12"
+                      Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                      BorderThickness="0,0,0,1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="3*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <TextBlock Grid.Column="1" Text="Protocol" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <TextBlock Grid.Column="2" Text="Address / URL" Style="{StaticResource ColumnHeaderTextStyle}" />
+                </Grid>
+
+                <ListView
+                    Grid.Row="1"
+                    SelectionMode="Single"
+                    ItemsSource="{x:Bind ViewModel.Items}"
+                    SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
+                    DoubleTapped="List_DoubleTapped">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ServerItemViewModel">
+                            <Grid Padding="12,8" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="3*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind ProtocolLabel, Mode=OneWay}" VerticalAlignment="Center" Opacity="0.85" />
+                                <TextBlock Grid.Column="2" Text="{x:Bind Endpoint, Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" FontFamily="Consolas" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Border>
     </Grid>
 </Page>

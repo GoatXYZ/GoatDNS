@@ -18,6 +18,8 @@ public partial class ServerItemViewModel : ObservableObject
     // Changing the protocol re-shapes the visible fields, so notify every Show* flag.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Summary))]
+    [NotifyPropertyChangedFor(nameof(ProtocolLabel))]
+    [NotifyPropertyChangedFor(nameof(Endpoint))]
     [NotifyPropertyChangedFor(nameof(ShowAddress))]
     [NotifyPropertyChangedFor(nameof(ShowUrl))]
     [NotifyPropertyChangedFor(nameof(ShowHostname))]
@@ -27,8 +29,8 @@ public partial class ServerItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowDnsCrypt))]
     private ServerProtocol _protocol;
 
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))] private string? _address;
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))] private string? _url;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))][NotifyPropertyChangedFor(nameof(Endpoint))] private string? _address;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(Summary))][NotifyPropertyChangedFor(nameof(Endpoint))] private string? _url;
     [ObservableProperty] private string? _hostname;
     [ObservableProperty] private bool _useHttp3;
     [ObservableProperty] private string? _bootstrapAddress;
@@ -48,6 +50,19 @@ public partial class ServerItemViewModel : ObservableObject
     public bool ShowTlsPins => Protocol is ServerProtocol.DoH or ServerProtocol.DoT or ServerProtocol.DoQ;
     public bool ShowHttp3 => Protocol is ServerProtocol.DoH;
     public bool ShowDnsCrypt => Protocol is ServerProtocol.DnsCrypt;
+
+    /// <summary>Short protocol label for the Protocol column.</summary>
+    public string ProtocolLabel => Protocol switch
+    {
+        ServerProtocol.DoH => "DoH",
+        ServerProtocol.DoT => "DoT",
+        ServerProtocol.DoQ => "DoQ",
+        ServerProtocol.DnsCrypt => "DNSCrypt",
+        _ => "Plain",
+    };
+
+    /// <summary>The address-or-URL shown in the last column (URL for DoH, else the IP/host).</summary>
+    public string Endpoint => Protocol == ServerProtocol.DoH ? (Url ?? "") : (Address ?? Hostname ?? "");
 
     /// <summary>Secondary text for the list row.</summary>
     public string Summary => Protocol switch

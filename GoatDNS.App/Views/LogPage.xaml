@@ -2,8 +2,7 @@
 <Page
     x:Class="GoatDNS.App.Views.LogPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:vm="using:GoatDNS.App.ViewModels">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Grid Padding="20" RowSpacing="12">
         <Grid.RowDefinitions>
@@ -21,6 +20,8 @@
                 ItemsSource="{x:Bind ViewModel.VerbosityOptions}"
                 SelectedItem="{x:Bind ViewModel.MaxLevel, Mode=TwoWay}" />
             <ToggleButton Content="Pause" IsChecked="{x:Bind ViewModel.IsPaused, Mode=TwoWay}" VerticalAlignment="Bottom" />
+            <Button Content="Copy" Click="Copy_Click" VerticalAlignment="Bottom"
+                    ToolTipService.ToolTip="Copy the selection, or the whole log if nothing is selected" />
             <Button Content="Clear" Command="{x:Bind ViewModel.ClearCommand}" VerticalAlignment="Bottom" />
             <TextBox
                 PlaceholderText="Filter…"
@@ -29,36 +30,28 @@
                 Text="{x:Bind ViewModel.FilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         </StackPanel>
 
-        <ListView
-            x:Name="LogList"
+        <!-- RichTextBlock (not a ListView) so log text is selectable and copyable. Rows are mirrored
+             from the view-model into Blocks in code-behind; colouring is per-line. -->
+        <Border
             Grid.Row="2"
-            ItemsSource="{x:Bind ViewModel.Rows}"
-            SelectionMode="None"
             BorderThickness="1"
+            CornerRadius="4"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            FontFamily="Consolas"
-            ScrollViewer.HorizontalScrollMode="Auto"
-            ScrollViewer.HorizontalScrollBarVisibility="Auto">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="MinHeight" Value="0" />
-                    <Setter Property="Padding" Value="8,2" />
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="vm:LogRow">
-                    <Grid ColumnSpacing="10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{x:Bind Time}" Opacity="0.6" />
-                        <TextBlock Grid.Column="1" Width="80" Text="{x:Bind Level}" Foreground="{x:Bind Level, Converter={StaticResource LogLevelToBrush}}" />
-                        <TextBlock Grid.Column="2" Text="{x:Bind Message}" Foreground="{x:Bind Level, Converter={StaticResource LogLevelToBrush}}" TextWrapping="NoWrap" />
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+            <ScrollViewer
+                x:Name="LogScroll"
+                Padding="10,8"
+                HorizontalScrollMode="Auto"
+                HorizontalScrollBarVisibility="Auto"
+                VerticalScrollBarVisibility="Auto">
+                <RichTextBlock
+                    x:Name="LogText"
+                    IsTextSelectionEnabled="True"
+                    TextWrapping="NoWrap"
+                    FontFamily="Consolas"
+                    FontSize="13"
+                    LineHeight="18" />
+            </ScrollViewer>
+        </Border>
     </Grid>
 </Page>
