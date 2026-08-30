@@ -1,24 +1,21 @@
 using System.IO.Pipes;
-using System.Net;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using GoatDNS.Core.Config;
-using GoatDNS.Core.Dns;
 using GoatDNS.Core.Engine;
 using GoatDNS.Core.Ipc;
 using GoatDNS.Core.Logging;
-using GoatDNS.Core.Rules;
-using GoatDNS.Core.Upstreams;
 using Microsoft.Extensions.Logging;
 
 namespace GoatDNS.Service;
 
 /// <summary>
-/// Named-pipe server. Each connection handles one request, except SubscribeLog which streams
-/// log lines until the client disconnects. Multiple concurrent client connections are accepted.
+/// Named-pipe server exposing the <see cref="GoatDnsHost"/> to the unelevated UI. Each connection
+/// handles one request, except SubscribeLog which streams log lines until the client disconnects.
+/// Applies go through <paramref name="applyAndPersist"/> so the service also writes config to disk.
 /// </summary>
-public sealed class IpcServer(RuntimeState state, Func<GoatConfig, Task> applyConfig, ILogger<IpcServer> logger)
+public sealed class IpcServer(GoatDnsHost host, Func<GoatConfig, Task> applyAndPersist, ILogger<IpcServer> logger)
 {
     public async Task RunAsync(CancellationToken ct)
     {
@@ -107,57 +104,34 @@ public sealed class IpcServer(RuntimeState state, Func<GoatConfig, Task> applyCo
             switch (request.Command)
             {
                 case IpcCommand.GetStatus:
-                    return IpcResponse.Success(IpcJson.Serialize(state.Snapshot()));
+                case IpcCommand.GetStats:
+                    return IpcResponse.Success(IpcJson.Serialize(host.Snapshot()));
 
                 case IpcCommand.GetConfig:
-                    return IpcResponse.Success(state.Config.ToJson());
+                    return IpcResponse.Success(host.Config.ToJson());
 
                 case IpcCommand.ApplyConfig:
                 {
                     var config = GoatConfig.FromJson(request.Payload ?? throw new ArgumentException("Missing config"));
                     config.Validate();
-                    await applyConfig(config).ConfigureAwait(false);
+                    await applyAndPersist(config).ConfigureAwait(false);
                     return IpcResponse.Success();
                 }
 
                 case IpcCommand.SetEnabled:
                 {
-                    var config = GoatConfig.FromJson(state.Config.ToJson()); // clone
+                    var config = GoatConfig.FromJson(host.Config.ToJson());
                     config.Enabled = request.Payload == "true";
-                    await applyConfig(config).ConfigureAwait(false);
+                    await applyAndPersist(config).ConfigureAwait(false);
                     return IpcResponse.Success();
                 }
 
-                case IpcCommand.GetStats:
-                    return IpcResponse.Success(IpcJson.Serialize(state.Snapshot()));
-
                 case IpcCommand.TestServer:
-                    return await TestServerAsync(request.Payload).ConfigureAwait(false);
+                    return IpcResponse.Success(await host.TestServerAsync(request.Payload).ConfigureAwait(false));
 
                 default:
                     return IpcResponse.Fail($"Unknown command {request.Command}");
             }
-        }
-        catch (Exception ex)
-        {
-            return IpcResponse.Fail(ex.Message);
-        }
-    }
-
-    private async Task<IpcResponse> TestServerAsync(string? serverName)
-    {
-        var def = state.Config.Servers.FirstOrDefault(s => s.Name.Equals(serverName, StringComparison.OrdinalIgnoreCase));
-        if (def is null) return IpcResponse.Fail($"No server named '{serverName}'");
-
-        try
-        {
-            using var upstream = UpstreamFactory.BuildServer(def);
-            var query = DnsMessage.CreateQuery("example.com", DnsRecordType.A);
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
-            long start = System.Diagnostics.Stopwatch.GetTimestamp();
-            var response = await upstream.ResolveAsync(query, cts.Token).ConfigureAwait(false);
-            double ms = System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-            return IpcResponse.Success($"OK — {response.ResponseCode}, {response.Answers.Count} answer(s) in {ms:0} ms");
         }
         catch (Exception ex)
         {
@@ -171,11 +145,10 @@ public sealed class IpcServer(RuntimeState state, Func<GoatConfig, Task> applyCo
             new System.Threading.Channels.BoundedChannelOptions(500) { FullMode = System.Threading.Channels.BoundedChannelFullMode.DropOldest });
 
         void OnEntry(LogEntry e) => channel.Writer.TryWrite(e);
-        state.Log.EntryAdded += OnEntry;
+        host.Log.EntryAdded += OnEntry;
         try
         {
-            // Backfill recent history first, then stream live.
-            foreach (var entry in state.Log.Snapshot())
+            foreach (var entry in host.Log.Snapshot())
                 await WritePushAsync(writer, entry, ct).ConfigureAwait(false);
 
             await foreach (var entry in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
@@ -183,7 +156,7 @@ public sealed class IpcServer(RuntimeState state, Func<GoatConfig, Task> applyCo
         }
         finally
         {
-            state.Log.EntryAdded -= OnEntry;
+            host.Log.EntryAdded -= OnEntry;
         }
     }
 

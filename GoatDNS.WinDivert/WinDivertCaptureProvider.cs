@@ -28,6 +28,10 @@ public sealed class WinDivertCaptureProvider(DnsEngine engine, QueryLog log) : I
     private volatile bool _running;
     private long _queriesHandled;
 
+    /// <summary>Capture-provider factory to hand to <see cref="GoatDnsHost"/> (service or in-process app).</summary>
+    public static Func<DnsEngine, ICaptureProvider> Factory(QueryLog log) =>
+        engine => new WinDivertCaptureProvider(engine, log);
+
     public string Name => "windivert";
     public bool IsActive => _running;
     public long QueriesHandled => Interlocked.Read(ref _queriesHandled);

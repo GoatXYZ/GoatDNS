@@ -19,7 +19,7 @@ public sealed class IpcException(string message) : Exception(message);
 /// The server handles exactly one request per connection (except SubscribeLog, which streams),
 /// so every call here opens a fresh connection — this mirrors <c>GoatDNS.Service/IpcServer</c>.
 /// </summary>
-public sealed class IpcClient
+public sealed class IpcClient : IBackend
 {
     // How long to wait for the pipe before deciding the service is down. Kept short so the
     // status poll stays responsive when the service isn't installed/running.
@@ -34,6 +34,9 @@ public sealed class IpcClient
     public IpcClient() =>
         _ui = DispatcherQueue.GetForCurrentThread()
             ?? throw new InvalidOperationException("IpcClient must be constructed on the UI thread.");
+
+    public bool IsLocal => false;
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task<ServiceStatus> GetStatusAsync(CancellationToken ct = default) =>
         IpcJson.Deserialize<ServiceStatus>(await RequestAsync(new IpcRequest { Command = IpcCommand.GetStatus }, ct));

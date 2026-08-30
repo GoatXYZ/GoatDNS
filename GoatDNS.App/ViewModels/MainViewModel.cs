@@ -22,7 +22,13 @@ public partial class MainViewModel : ObservableObject
     // working copy is the user's to edit; only Reload/Import overwrite it.
     private bool _configLoaded;
 
-    public IpcClient Ipc { get; }
+    /// <summary>The active backend — either the Windows service (over IPC) or an in-process DNS-mode host.</summary>
+    public IBackend Backend { get; }
+
+    /// <summary>True when interception runs in this app process (DNS mode) rather than the service.</summary>
+    public bool IsDnsMode => Backend.IsLocal;
+
+    public string ModeLabel => IsDnsMode ? "DNS mode (this app)" : "Windows service";
 
     public ServersViewModel Servers { get; }
     public PoolsViewModel Pools { get; }
@@ -67,9 +73,9 @@ public partial class MainViewModel : ObservableObject
     public bool HasError => !string.IsNullOrEmpty(LastError);
     public string InterceptionMenuLabel => InterceptionEnabled ? "Disable interception" : "Enable interception";
 
-    public MainViewModel(IpcClient ipc)
+    public MainViewModel(IBackend backend)
     {
-        Ipc = ipc;
+        Backend = backend;
 
         // Children hold back-references so they can read sibling data (e.g. Pools needs server names).
         Servers = new ServersViewModel(this);
@@ -86,11 +92,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Called once by the window after it loads: start polling and the log stream.</summary>
-    public void Start()
+    public void Start() => _ = InitializeAndStartAsync();
+
+    private async Task InitializeAndStartAsync()
     {
+        // In DNS mode this loads the shared config and starts interception in-process; over IPC it's a no-op.
+        try { await Backend.InitializeAsync(); }
+        catch (Exception ex) { LastError = ex.Message; }
+
         Log.Start();
         _statusTimer.Start();
-        _ = RefreshStatusAsync();
+        await RefreshStatusAsync();
     }
 
     private async Task RefreshStatusAsync()
@@ -106,12 +118,13 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            var status = await Ipc.GetStatusAsync();
+            var status = await Backend.GetStatusAsync();
             IsServiceAvailable = true;
             InterceptionEnabled = status.Enabled;
+            var mode = Backend.IsLocal ? "DNS mode (this app)" : "Service";
             StatusSummary = status.Enabled
-                ? $"Provider: {status.CaptureProvider} · {(status.CaptureActive ? "capturing" : "idle")} · port {status.ListenPort} · {status.QueriesHandled:N0} queries · v{status.Version}"
-                : "Interception disabled";
+                ? $"{mode} · {status.CaptureProvider} · {(status.CaptureActive ? "capturing" : "idle")} · port {status.ListenPort} · {status.QueriesHandled:N0} queries · v{status.Version}"
+                : $"{mode} · interception disabled";
             if (status.LastError is { Length: > 0 } err) StatusSummary += $" · {err}";
 
             // First reachable moment: pull the config into the working copy (non-destructive thereafter).
@@ -127,7 +140,7 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Re-reads the config from the service, replacing the working copy.</summary>
     public async Task LoadConfigFromServiceAsync()
     {
-        var config = await Ipc.GetConfigAsync();
+        var config = await Backend.GetConfigAsync();
         LoadConfig(config);
         _configLoaded = true;
     }
@@ -173,7 +186,7 @@ public partial class MainViewModel : ObservableObject
         {
             var config = BuildConfig();
             config.Validate(); // fail fast with a readable message before the round-trip
-            await Ipc.ApplyConfigAsync(config);
+            await Backend.ApplyConfigAsync(config);
             await RefreshStatusAsync();
         }
         catch (Exception ex)
@@ -212,7 +225,7 @@ public partial class MainViewModel : ObservableObject
         bool target = !InterceptionEnabled;
         try
         {
-            await Ipc.SetEnabledAsync(target);
+            await Backend.SetEnabledAsync(target);
             Options.Enabled = target; // keep the Options page's persisted toggle in sync with the live state
             await RefreshStatusAsync();
         }
@@ -224,6 +237,18 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void DismissError() => LastError = null;
+
+    /// <summary>Enter in-process DNS mode: relaunch elevated with --dnsmode (UAC) and close this instance.</summary>
+    [RelayCommand]
+    private void StartDnsMode()
+    {
+        if (ServiceControl.RelaunchElevated("--dnsmode"))
+            Microsoft.UI.Xaml.Application.Current.Exit();
+        else
+            LastError = "Elevation was cancelled; DNS mode needs administrator rights.";
+    }
+
+    public bool CanStartDnsMode => !IsDnsMode;
 
     // ---- Windows service control (self-elevates via UAC when the app isn't already admin) ----
 

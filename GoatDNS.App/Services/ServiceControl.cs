@@ -65,6 +65,20 @@ public static class ServiceControl
         }
     }
 
+    /// <summary>Relaunches this app elevated with the given args (UAC), for entering in-process DNS mode.</summary>
+    public static bool RelaunchElevated(string args)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, args) { UseShellExecute = true, Verb = "runas" });
+            return true;
+        }
+        catch (Win32Exception)
+        {
+            return false; // user declined UAC
+        }
+    }
+
     /// <summary>Performs the action directly; must be called elevated. Invoked by the `--svc` relaunch.</summary>
     public static (bool Ok, string Message) RunActionElevated(string action)
     {

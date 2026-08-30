@@ -26,7 +26,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _main = new MainViewModel(new IpcClient());
+        _main = new MainViewModel(SelectBackend());
 
         var window = new MainWindow();
         _window = window;
@@ -34,5 +34,21 @@ public partial class App : Application
 
         window.Activate();
         window.Start(); // create the tray icon and begin polling/streaming
+    }
+
+    /// <summary>
+    /// Chooses how interception runs: the background service if it's running, otherwise in-process
+    /// "DNS mode" when we're elevated. Unelevated with no service falls back to the IPC client, whose
+    /// "service not running" state lets the user install the service or relaunch in DNS mode.
+    /// <c>--dnsmode</c> forces in-process (the elevated relaunch passes it).
+    /// </summary>
+    private static IBackend SelectBackend()
+    {
+        bool forceDnsMode = Environment.GetCommandLineArgs().Contains("--dnsmode");
+        if (!forceDnsMode && ServiceControl.Query() == ServiceState.Running)
+            return new IpcClient();
+        if (ServiceControl.IsElevated)
+            return new InProcessBackend();
+        return new IpcClient();
     }
 }

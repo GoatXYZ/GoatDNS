@@ -38,7 +38,7 @@ public partial class LogViewModel : ObservableObject
     public IReadOnlyList<LogVerbosity> VerbosityOptions { get; } = Enum.GetValues<LogVerbosity>();
 
     /// <summary>Begins streaming. Idempotent-ish: only the first call wires the subscription.</summary>
-    public void Start() => _subscription ??= _main.Ipc.SubscribeLog(OnPush);
+    public void Start() => _subscription ??= _main.Backend.SubscribeLog(OnPush);
 
     // Invoked on the UI thread (IpcClient marshals), so touching the collection is safe.
     private void OnPush(LogPush push)

@@ -39,6 +39,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GoatDNS.Core\GoatDNS.Core.csproj" />
+    <!-- For in-process "DNS mode": the elevated app hosts the engine + WinDivert directly. -->
+    <ProjectReference Include="..\GoatDNS.WinDivert\GoatDNS.WinDivert.csproj" />
   </ItemGroup>
 
 </Project>

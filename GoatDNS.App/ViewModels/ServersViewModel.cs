@@ -92,7 +92,7 @@ public partial class ServersViewModel : ObservableObject
         ResultOpen = false;
         try
         {
-            ResultMessage = await _main.Ipc.TestServerAsync(Selected.Name);
+            ResultMessage = await _main.Backend.TestServerAsync(Selected.Name);
             ResultIsError = false;
         }
         catch (Exception ex)

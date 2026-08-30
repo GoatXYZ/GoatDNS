@@ -1,5 +1,3 @@
-using System.Net;
-using GoatDNS.Core.Capture;
 using GoatDNS.Core.Config;
 using GoatDNS.Core.Engine;
 using GoatDNS.Core.Logging;
@@ -9,27 +7,26 @@ using Microsoft.Extensions.Logging;
 namespace GoatDNS.Service;
 
 /// <summary>
-/// Owns the whole lifecycle: load config, stand up engine + loopback proxy + capture, watch the
-/// config file for external edits, and run the IPC server. Reconfiguration (from the UI or a file
-/// edit) rebuilds the engine in place and, when Enabled flips, starts/stops capture.
+/// Windows-service wrapper around <see cref="GoatDnsHost"/>: loads config from disk, watches it for
+/// external edits, persists changes, and serves the IPC pipe. All engine/capture lifecycle lives in
+/// the host, which the elevated app also runs in-process for "DNS mode".
 /// </summary>
 public sealed class GoatDnsWorker : BackgroundService
 {
-    private readonly RuntimeState _state;
+    private readonly GoatDnsHost _host;
     private readonly QueryLog _log;
     private readonly ILogger<GoatDnsWorker> _logger;
     private readonly IpcServer _ipc;
-    private readonly SemaphoreSlim _applyGate = new(1, 1);
+    private readonly string _configPath = GoatConfig.DefaultPath;
     private FileSystemWatcher? _configWatcher;
 
-    public GoatDnsWorker(RuntimeState state, ILoggerFactory loggerFactory)
+    public GoatDnsWorker(GoatDnsHost host, ILoggerFactory loggerFactory)
     {
-        _state = state;
-        _log = state.Log;
+        _host = host;
+        _log = host.Log;
         _logger = loggerFactory.CreateLogger<GoatDnsWorker>();
-        _ipc = new IpcServer(state, ApplyConfigAsync, loggerFactory.CreateLogger<IpcServer>());
+        _ipc = new IpcServer(host, ApplyAndPersistAsync, loggerFactory.CreateLogger<IpcServer>());
 
-        // Bridge engine log -> host logger at a coarse level for the Windows event log / console.
         _log.EntryAdded += e =>
         {
             if (e.Level == LogVerbosity.ErrorsOnly) _logger.LogWarning("{Message}", e.Message);
@@ -38,138 +35,48 @@ public sealed class GoatDnsWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var config = GoatConfig.LoadOrDefault(_state.ConfigPath);
-        await ApplyConfigAsync(config).ConfigureAwait(false);
+        await ApplyAndPersistAsync(GoatConfig.LoadOrDefault(_configPath)).ConfigureAwait(false);
         StartConfigWatcher();
 
-        _logger.LogInformation("GoatDNS service started (provider={Provider})", _state.Capture.Name);
+        _logger.LogInformation("GoatDNS service started (provider={Provider})", _host.Snapshot().CaptureProvider);
         try
         {
             await _ipc.RunAsync(stoppingToken).ConfigureAwait(false);
         }
         finally
         {
-            await TeardownRuntimeAsync().ConfigureAwait(false);
+            _configWatcher?.Dispose();
+            await _host.DisposeAsync().ConfigureAwait(false);
+            _log.Dispose();
         }
     }
 
-    /// <summary>Atomically rebuild engine/proxy/capture from a new config and persist it.</summary>
-    private async Task ApplyConfigAsync(GoatConfig config)
+    private async Task ApplyAndPersistAsync(GoatConfig config)
     {
-        await _applyGate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            config.Validate();
-
-            // Rebuild engine.
-            var engine = _state.Engine;
-            if (engine is null)
-            {
-                engine = new DnsEngine(config, _log);
-            }
-            else
-            {
-                engine.Apply(config);
-            }
-
-            // Restart proxy on the (possibly changed) listen port.
-            if (_state.Proxy is { } oldProxy) await oldProxy.DisposeAsync().ConfigureAwait(false);
-            var capture = _state.Capture is NullCaptureProvider ? CaptureProviderFactory.Create(_log, engine) : _state.Capture;
-
-            // The loopback proxy is optional infrastructure (a manual resolver on ListenPort). WinDivert
-            // answers inline without it, so a bind failure (e.g. a Windows reserved port range) must not
-            // stop interception.
-            DnsProxyServer? proxy = new(engine, _log, capture.Flows);
-            try
-            {
-                proxy.Start(IPAddress.Loopback, config.ListenPort);
-            }
-            catch (Exception ex)
-            {
-                _log.Error($"Loopback proxy on port {config.ListenPort} unavailable ({ex.Message}); " +
-                           "interception is unaffected. Pick a free ListenPort to use the manual resolver.");
-                await proxy.DisposeAsync().ConfigureAwait(false);
-                proxy = null;
-            }
-
-            _state.SetRuntime(engine, proxy, capture);
-            _state.SetConfig(config);
-            PersistQuietly(config);
-
-            // Start/stop system-wide capture to match Enabled.
-            await ReconcileCaptureAsync(config.Enabled, proxy?.UdpEndPoint.Port ?? config.ListenPort).ConfigureAwait(false);
-            _state.LastError = null;
-        }
-        catch (Exception ex)
-        {
-            _state.LastError = ex.Message;
-            _log.Error($"Apply config failed: {ex.Message}");
-            throw;
-        }
-        finally
-        {
-            _applyGate.Release();
-        }
-    }
-
-    private async Task ReconcileCaptureAsync(bool enabled, int listenPort)
-    {
-        var capture = _state.Capture;
-        try
-        {
-            if (enabled && !capture.IsActive)
-            {
-                await capture.StartAsync(listenPort, Environment.ProcessId, CancellationToken.None).ConfigureAwait(false);
-                _log.Info($"Interception enabled via {capture.Name}");
-            }
-            else if (!enabled && capture.IsActive)
-            {
-                await capture.StopAsync().ConfigureAwait(false);
-                _log.Info("Interception disabled");
-            }
-        }
-        catch (Exception ex)
-        {
-            _state.LastError = ex.Message;
-            _log.Error($"Capture {(enabled ? "start" : "stop")} failed: {ex.Message}");
-        }
+        await _host.ApplyAsync(config).ConfigureAwait(false);
+        try { config.Save(_configPath); }
+        catch (Exception ex) { _log.Error($"Could not persist config: {ex.Message}"); }
     }
 
     private void StartConfigWatcher()
     {
-        var dir = Path.GetDirectoryName(Path.GetFullPath(_state.ConfigPath));
+        var dir = Path.GetDirectoryName(Path.GetFullPath(_configPath));
         if (dir is null || !Directory.Exists(dir)) return;
-        _configWatcher = new FileSystemWatcher(dir, Path.GetFileName(_state.ConfigPath)) { EnableRaisingEvents = true };
+        _configWatcher = new FileSystemWatcher(dir, Path.GetFileName(_configPath)) { EnableRaisingEvents = true };
         _configWatcher.Changed += async (_, _) =>
         {
             await Task.Delay(200).ConfigureAwait(false); // debounce editors writing in bursts
             try
             {
-                var reloaded = GoatConfig.FromJson(await File.ReadAllTextAsync(_state.ConfigPath).ConfigureAwait(false));
-                if (reloaded.ToJson() == _state.Config.ToJson()) return; // our own write
+                var reloaded = GoatConfig.FromJson(await File.ReadAllTextAsync(_configPath).ConfigureAwait(false));
+                if (reloaded.ToJson() == _host.Config.ToJson()) return; // our own write
                 _log.Info("Config file changed on disk; reloading");
-                await ApplyConfigAsync(reloaded).ConfigureAwait(false);
+                await _host.ApplyAsync(reloaded).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _log.Error($"Reload from disk failed: {ex.Message}");
             }
         };
-    }
-
-    private void PersistQuietly(GoatConfig config)
-    {
-        try { config.Save(_state.ConfigPath); }
-        catch (Exception ex) { _log.Error($"Could not persist config: {ex.Message}"); }
-    }
-
-    private async Task TeardownRuntimeAsync()
-    {
-        _configWatcher?.Dispose();
-        if (_state.Capture.IsActive) await _state.Capture.StopAsync().ConfigureAwait(false);
-        await _state.Capture.DisposeAsync().ConfigureAwait(false);
-        if (_state.Proxy is { } proxy) await proxy.DisposeAsync().ConfigureAwait(false);
-        _state.Engine?.Dispose();
-        _log.Dispose();
     }
 }

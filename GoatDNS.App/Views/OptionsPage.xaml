@@ -42,6 +42,18 @@
             <TextBox Header="Log file path (optional)" Text="{x:Bind ViewModel.LogFilePath, Mode=TwoWay}" />
             <Button Content="Browse…" Click="BrowseLog_Click" />
 
+            <!-- Interception mode -->
+            <TextBlock Text="Interception mode" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Running as:" VerticalAlignment="Center" Opacity="0.7" />
+                <TextBlock Text="{x:Bind ViewModel.Main.ModeLabel, Mode=OneWay}" VerticalAlignment="Center" FontWeight="SemiBold" />
+            </StackPanel>
+            <Button Content="Run in DNS mode (this app, elevated)"
+                    Command="{x:Bind ViewModel.Main.StartDnsModeCommand}"
+                    IsEnabled="{x:Bind ViewModel.Main.CanStartDnsMode, Mode=OneWay}" />
+            <TextBlock Opacity="0.7" TextWrapping="Wrap"
+                       Text="DNS mode runs interception inside this app (no background service) while it's open — this is the default when you launch elevated. The Windows service below is the always-on / works-without-login option." />
+
             <!-- Windows service -->
             <TextBlock Text="Windows service" Style="{StaticResource SubtitleTextBlockStyle}" />
             <StackPanel Orientation="Horizontal" Spacing="8">
