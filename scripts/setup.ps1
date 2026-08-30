@@ -5,9 +5,9 @@
     no MSI, no code signing. Publishes self-contained builds and registers the Windows service.
 
 .NOTES
-    The eBPF capture path needs the eBPF-for-Windows runtime installed AND test-signing enabled
-    (bcdedit /set testsigning on; Secure Boot off; reboot). Without it the service still runs but
-    only answers traffic explicitly pointed at its listen port. See GoatDNS.Ebpf\README.md.
+    System-wide capture uses WinDivert (a Microsoft-signed driver — no test-signing or reboot).
+    This script runs get-windivert.ps1 to fetch it. Without the driver the service still runs but
+    only answers traffic explicitly pointed at its listen port. See GoatDNS.WinDivert\README.md.
 #>
 param(
     [ValidateSet('x64', 'ARM64')]
@@ -24,6 +24,9 @@ $serviceName = 'GoatDNS'
 Write-Host "GoatDNS setup — arch=$Arch rid=$rid" -ForegroundColor Cyan
 
 if (-not $SkipBuild) {
+    # Fetch the WinDivert driver so it gets bundled next to the service (no-op if already present).
+    $wdArch = if ($Arch -eq 'ARM64') { 'x64' } else { $Arch }  # WinDivert has no ARM64 build
+    & "$PSScriptRoot\get-windivert.ps1" -Arch $wdArch
     Write-Host 'Publishing service...' -ForegroundColor Cyan
     dotnet publish "$root\GoatDNS.Service\GoatDNS.Service.csproj" -c Release -r $rid --self-contained `
         -o "$InstallDir\service" /p:Platform=$Arch
@@ -62,4 +65,4 @@ if (Test-Path $appExe) {
 
 Write-Host "`nDone. Service '$serviceName' is running." -ForegroundColor Green
 Write-Host "Config: $env:ProgramData\GoatDNS\config.json" -ForegroundColor Gray
-Write-Host 'If DNS is not being intercepted system-wide, install the eBPF runtime and enable test-signing (see GoatDNS.Ebpf\README.md).' -ForegroundColor Gray
+Write-Host 'If DNS is not being intercepted system-wide, ensure WinDivert.dll is next to the service (run get-windivert.ps1). See GoatDNS.WinDivert\README.md.' -ForegroundColor Gray

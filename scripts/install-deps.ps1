@@ -10,10 +10,11 @@
     Server images. Safe to re-run; each step no-ops if the dependency is already present.
 
 .NOTES
-    Managed projects (Core, Service, Ebpf, Tests) need only the .NET SDK. The Windows 11 SDK +
-    Build Tools are required specifically for the WinUI app's XAML/.pri compilation.
-    To RUN with system-wide capture you additionally need the eBPF-for-Windows runtime and
-    test-signing — see GoatDNS.Ebpf\README.md. That is a runtime, not a build, dependency.
+    Managed projects (Core, Service, WinDivert, Tests) need only the .NET SDK. In practice the WinUI
+    app also builds with just the SDK (the XAML compiler ships in the NuGet packages), so the VS
+    Build Tools step below is usually optional — try -SkipVisualStudio first.
+    To RUN with system-wide capture, fetch the WinDivert driver with scripts\get-windivert.ps1
+    (a signed driver — no test-signing). That is a runtime, not a build, dependency.
 #>
 param(
     [switch]$SkipVisualStudio  # set if you only need to build the managed projects (no WinUI app)

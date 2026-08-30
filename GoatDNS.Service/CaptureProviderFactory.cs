@@ -1,29 +1,23 @@
 using GoatDNS.Core.Capture;
+using GoatDNS.Core.Engine;
 using GoatDNS.Core.Logging;
 
 namespace GoatDNS.Service;
 
 /// <summary>
-/// Selects the interception mechanism. eBPF is the intended path; if its runtime isn't present
-/// (not installed, test-signing off), we fall back to NullCaptureProvider so the service still
-/// runs as a plain loopback resolver instead of crash-looping.
+/// Selects the interception mechanism. WinDivert (a signed WFP driver — no test signing) is the
+/// provider; on non-Windows or if the driver can't be opened, the service still runs as a plain
+/// loopback resolver via <see cref="NullCaptureProvider"/> instead of failing to start.
 /// </summary>
 public static class CaptureProviderFactory
 {
-    public static ICaptureProvider Create(QueryLog log)
+    public static ICaptureProvider Create(QueryLog log, DnsEngine engine)
     {
         if (!OperatingSystem.IsWindows())
             return new NullCaptureProvider();
 
-        try
-        {
-            return new GoatDNS.Ebpf.EbpfCaptureProvider();
-        }
-        catch (Exception ex)
-        {
-            log.Error($"eBPF provider unavailable ({ex.Message}); running without system-wide capture. " +
-                      "Point a resolver at the listen port, or install the eBPF runtime with test-signing enabled.");
-            return new NullCaptureProvider();
-        }
+        // Construction does no native work; a missing driver/dll surfaces at StartAsync, which the
+        // worker catches and reports (leaving the service running as a local resolver).
+        return new GoatDNS.WinDivert.WinDivertCaptureProvider(engine, log);
     }
 }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Windows-flavored TFM: P/Invoke into WinDivert.dll. -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <RootNamespace>GoatDNS.WinDivert</RootNamespace>
+    <!-- Source-generated P/Invoke ([LibraryImport]) requires unsafe. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GoatDNS.Core\GoatDNS.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinDivert.dll / WinDivert64.sys are fetched by scripts\get-windivert.ps1 into runtime\
+         (LGPL redistributables, not committed). Flattened to the output root so P/Invoke finds
+         WinDivert.dll next to the service exe. -->
+    <None Include="runtime\*" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Condition="Exists('runtime')" />
+  </ItemGroup>
+
+</Project>

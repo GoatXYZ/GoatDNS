@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using GoatDNS.Core.Capture;
 using GoatDNS.Core.Dns;
 
 namespace GoatDNS.Core.Upstreams;
@@ -28,16 +29,28 @@ public sealed class PlainDnsUpstream(string name, IPEndPoint server, IPAddress? 
         using var socket = new Socket(Server.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
         if (bindAddress is not null) socket.Bind(new IPEndPoint(bindAddress, 0));
         await socket.ConnectAsync(Server, ct).ConfigureAwait(false);
-        await socket.SendAsync(wire, SocketFlags.None, ct).ConfigureAwait(false);
 
-        var buf = new byte[4096];
-        while (true)
+        // Tell any packet-diversion capture layer this is our own :53 egress, so it passes it through
+        // rather than re-resolving it (registered before the first send; removed when the query ends).
+        int localPort = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
+        SelfTrafficRegistry.Add(localPort);
+        try
         {
-            int n = await socket.ReceiveAsync(buf, SocketFlags.None, ct).ConfigureAwait(false);
-            DnsMessage msg;
-            try { msg = DnsMessage.Parse(buf.AsSpan(0, n)); }
-            catch (FormatException) { continue; }
-            if (msg.Id == id && msg.IsResponse) return msg;
+            await socket.SendAsync(wire, SocketFlags.None, ct).ConfigureAwait(false);
+
+            var buf = new byte[4096];
+            while (true)
+            {
+                int n = await socket.ReceiveAsync(buf, SocketFlags.None, ct).ConfigureAwait(false);
+                DnsMessage msg;
+                try { msg = DnsMessage.Parse(buf.AsSpan(0, n)); }
+                catch (FormatException) { continue; }
+                if (msg.Id == id && msg.IsResponse) return msg;
+            }
+        }
+        finally
+        {
+            SelfTrafficRegistry.Remove(localPort);
         }
     }
 

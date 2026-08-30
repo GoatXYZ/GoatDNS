@@ -8,8 +8,8 @@ namespace GoatDNS.Core.Engine;
 
 /// <summary>
 /// UDP + TCP loopback listeners that receive redirected DNS traffic, hand each query to the engine,
-/// and write the answer back on the same socket. Transport-agnostic: works behind eBPF redirect,
-/// WinDivert, or a manually-pointed resolver.
+/// and write the answer back on the same socket. Used as the optional manual resolver (point an
+/// adapter's DNS at the listen port); the WinDivert provider answers captured traffic inline instead.
 /// </summary>
 public sealed class DnsProxyServer(DnsEngine engine, QueryLog log, IFlowResolver? flows = null) : IAsyncDisposable
 {
@@ -24,8 +24,8 @@ public sealed class DnsProxyServer(DnsEngine engine, QueryLog log, IFlowResolver
     public long QueriesHandled => Interlocked.Read(ref _queriesHandled);
 
     /// <summary>
-    /// Binds UDP+TCP loopback listeners on both IPv4 (127.0.0.1) and IPv6 (::1) — the eBPF
-    /// connect4/connect6 hooks redirect to the same-family loopback, so both must be served.
+    /// Binds UDP+TCP loopback listeners on both IPv4 (127.0.0.1) and IPv6 (::1) for the manual
+    /// resolver path (a redirect-style provider would target the same-family loopback).
     /// </summary>
     public void Start(IPAddress address, int port)
     {
@@ -173,7 +173,7 @@ public sealed class DnsProxyServer(DnsEngine engine, QueryLog log, IFlowResolver
 
 /// <summary>
 /// Maps a redirected connection back to its origin (original destination + owning process),
-/// implemented by the platform capture layer (eBPF flow map on Windows).
+/// implemented by the platform capture layer when it redirects rather than answers inline.
 /// </summary>
 public interface IFlowResolver
 {

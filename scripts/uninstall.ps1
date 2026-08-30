@@ -31,4 +31,4 @@ if ($Purge) {
 }
 
 Write-Host 'GoatDNS removed.' -ForegroundColor Green
-Write-Host 'Note: the eBPF runtime (if you installed it) and test-signing are left untouched — revert those manually if desired (bcdedit /set testsigning off).' -ForegroundColor Gray
+Write-Host 'Note: the WinDivert driver installs on first use; to remove it fully run "sc.exe delete WinDivert" (elevated) after stopping GoatDNS.' -ForegroundColor Gray

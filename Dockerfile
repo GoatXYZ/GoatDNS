@@ -1,6 +1,6 @@
 # Reproducible build + test of the managed projects that DON'T need Windows.
 #
-# What this builds: GoatDNS.Core, GoatDNS.Service, GoatDNS.Ebpf, and runs GoatDNS.Tests.
+# What this builds: GoatDNS.Core, GoatDNS.Service, GoatDNS.WinDivert, and runs GoatDNS.Tests.
 # These target net10.0 / net10.0-windows and cross-compile on Linux via EnableWindowsTargeting
 # (set in Directory.Build.props for non-Windows hosts).
 #
@@ -19,7 +19,7 @@ COPY . .
 # a failing test fails the image, so a green image is a real guarantee. xUnit v3 builds a runnable
 # executable, so we exec it directly (the .NET 10 SDK dropped the old VSTest `dotnet test` path).
 RUN dotnet build GoatDNS.Service/GoatDNS.Service.csproj -c Release \
- && dotnet build GoatDNS.Ebpf/GoatDNS.Ebpf.csproj       -c Release \
+ && dotnet build GoatDNS.WinDivert/GoatDNS.WinDivert.csproj -c Release \
  && dotnet build GoatDNS.Tests/GoatDNS.Tests.csproj     -c Release \
  && dotnet exec GoatDNS.Tests/bin/Release/net10.0/GoatDNS.Tests.dll
 

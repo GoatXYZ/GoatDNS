@@ -56,7 +56,7 @@ Restored automatically by NuGet on first build (no manual install):
 dotnet restore GoatDNS.slnx
 dotnet build GoatDNS.Core/GoatDNS.Core.csproj -c Release
 dotnet build GoatDNS.Service/GoatDNS.Service.csproj -c Release
-dotnet build GoatDNS.Ebpf/GoatDNS.Ebpf.csproj -c Release
+dotnet build GoatDNS.WinDivert/GoatDNS.WinDivert.csproj -c Release
 dotnet build GoatDNS.App/GoatDNS.App.csproj -c Release -p:Platform=x64
 # tests (xUnit v3 = runnable exe; the .NET 10 SDK dropped the old `dotnet test` VSTest path):
 dotnet build GoatDNS.Tests/GoatDNS.Tests.csproj -c Release
@@ -65,15 +65,16 @@ dotnet exec GoatDNS.Tests/bin/Release/net10.0/GoatDNS.Tests.dll
 
 ## Beyond building: running with system-wide capture
 
-Building produces the binaries. To actually intercept system DNS you also need, on the machine that
-*runs* GoatDNS (not the build box):
+Building produces the binaries. To intercept system DNS you also need the WinDivert driver next to
+the service (it isn't committed — LGPL redistributable):
 
-1. The **eBPF-for-Windows runtime** installed.
-2. **Test signing enabled** — `bcdedit /set testsigning on` (requires Secure Boot off), then reboot.
-3. The eBPF program compiled to a native image — see [`GoatDNS.Ebpf/README.md`](GoatDNS.Ebpf/README.md).
+```powershell
+.\scripts\get-windivert.ps1     # downloads WinDivert.dll + WinDivert64.sys into GoatDNS.WinDivert\runtime\
+```
 
-Without those the service still runs as a local resolver; point an adapter's DNS at its listen port
-to use it. These are **runtime** requirements and are not needed to build.
+The build copies them next to `GoatDNS.Service.exe`; the Microsoft-signed driver installs
+automatically on first use (no test-signing, no reboot). Without them the service still runs as a
+local resolver. This is a **runtime** requirement, not needed to build.
 
 ## Troubleshooting
 

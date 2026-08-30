@@ -9,7 +9,7 @@
 
 .NOTES
     Run .\scripts\install-deps.ps1 first on a fresh machine. Building the WinUI app needs the
-    Windows Build Tools; the managed projects (Core/Service/Ebpf/Tests) build with just the SDK.
+    Windows Build Tools; the managed projects (Core/Service/WinDivert/Tests) build with just the SDK.
 #>
 param(
     [ValidateSet('Debug', 'Release')]
@@ -37,7 +37,7 @@ try {
     Write-Host "== Building ($Configuration/$Platform) ==" -ForegroundColor Cyan
     dotnet build GoatDNS.Core/GoatDNS.Core.csproj       -c $Configuration --no-restore
     dotnet build GoatDNS.Service/GoatDNS.Service.csproj -c $Configuration --no-restore
-    dotnet build GoatDNS.Ebpf/GoatDNS.Ebpf.csproj       -c $Configuration --no-restore
+    dotnet build GoatDNS.WinDivert/GoatDNS.WinDivert.csproj -c $Configuration --no-restore
     dotnet build GoatDNS.App/GoatDNS.App.csproj         -c $Configuration -p:Platform=$Platform --no-restore
 
     if (-not $SkipTests) {

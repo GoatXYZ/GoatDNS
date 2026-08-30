@@ -5,14 +5,17 @@ namespace GoatDNS.Core.Capture;
 /// <summary>
 /// System-wide DNS interception. Implementations redirect all port-53 traffic to the local proxy
 /// and expose a flow resolver so the engine can recover each query's original destination + process.
-/// The engine and proxy never depend on which mechanism (eBPF, WinDivert, driverless) is behind this.
+/// The engine and proxy never depend on which mechanism (WinDivert, or another) is behind this.
 /// </summary>
 public interface ICaptureProvider : IAsyncDisposable
 {
     string Name { get; }
     bool IsActive { get; }
 
-    /// <summary>Begin redirecting port-53 traffic (except our own <paramref name="selfPid"/>) to loopback <paramref name="listenPort"/>.</summary>
+    /// <summary>Count of DNS queries this provider has intercepted and answered (0 for redirect-only providers).</summary>
+    long QueriesHandled { get; }
+
+    /// <summary>Begin intercepting port-53 traffic (except our own <paramref name="selfPid"/> / self-traffic).</summary>
     Task StartAsync(int listenPort, int selfPid, CancellationToken ct);
 
     Task StopAsync();
@@ -26,6 +29,7 @@ public sealed class NullCaptureProvider : ICaptureProvider
 {
     public string Name => "none";
     public bool IsActive => false;
+    public long QueriesHandled => 0;
     public IFlowResolver Flows { get; } = new NullFlowResolver();
     public Task StartAsync(int listenPort, int selfPid, CancellationToken ct) => Task.CompletedTask;
     public Task StopAsync() => Task.CompletedTask;

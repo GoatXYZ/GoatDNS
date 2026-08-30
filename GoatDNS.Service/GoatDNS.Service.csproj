@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GoatDNS.Core\GoatDNS.Core.csproj" />
-    <ProjectReference Include="..\GoatDNS.Ebpf\GoatDNS.Ebpf.csproj" />
+    <ProjectReference Include="..\GoatDNS.WinDivert\GoatDNS.WinDivert.csproj" />
   </ItemGroup>
 
 </Project>

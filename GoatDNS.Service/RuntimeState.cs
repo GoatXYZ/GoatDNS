@@ -28,7 +28,7 @@ public sealed class RuntimeState(QueryLog log)
         lock (_gate) Config = config;
     }
 
-    public void SetRuntime(DnsEngine engine, DnsProxyServer proxy, ICaptureProvider capture)
+    public void SetRuntime(DnsEngine engine, DnsProxyServer? proxy, ICaptureProvider capture)
     {
         lock (_gate)
         {
@@ -48,7 +48,7 @@ public sealed class RuntimeState(QueryLog log)
                 CaptureProvider = Capture.Name,
                 CaptureActive = Capture.IsActive,
                 ListenPort = Proxy?.UdpEndPoint.Port ?? Config.ListenPort,
-                QueriesHandled = Proxy?.QueriesHandled ?? 0,
+                QueriesHandled = (Proxy?.QueriesHandled ?? 0) + Capture.QueriesHandled,
                 Version = typeof(RuntimeState).Assembly.GetName().Version?.ToString() ?? "dev",
                 LastError = LastError,
             };

@@ -74,16 +74,30 @@ public sealed class GoatDnsWorker : BackgroundService
 
             // Restart proxy on the (possibly changed) listen port.
             if (_state.Proxy is { } oldProxy) await oldProxy.DisposeAsync().ConfigureAwait(false);
-            var capture = _state.Capture is NullCaptureProvider ? CaptureProviderFactory.Create(_log) : _state.Capture;
-            var proxy = new DnsProxyServer(engine, _log, capture.Flows);
-            proxy.Start(IPAddress.Loopback, config.ListenPort);
+            var capture = _state.Capture is NullCaptureProvider ? CaptureProviderFactory.Create(_log, engine) : _state.Capture;
+
+            // The loopback proxy is optional infrastructure (a manual resolver on ListenPort). WinDivert
+            // answers inline without it, so a bind failure (e.g. a Windows reserved port range) must not
+            // stop interception.
+            DnsProxyServer? proxy = new(engine, _log, capture.Flows);
+            try
+            {
+                proxy.Start(IPAddress.Loopback, config.ListenPort);
+            }
+            catch (Exception ex)
+            {
+                _log.Error($"Loopback proxy on port {config.ListenPort} unavailable ({ex.Message}); " +
+                           "interception is unaffected. Pick a free ListenPort to use the manual resolver.");
+                await proxy.DisposeAsync().ConfigureAwait(false);
+                proxy = null;
+            }
 
             _state.SetRuntime(engine, proxy, capture);
             _state.SetConfig(config);
             PersistQuietly(config);
 
             // Start/stop system-wide capture to match Enabled.
-            await ReconcileCaptureAsync(config.Enabled, proxy.UdpEndPoint.Port).ConfigureAwait(false);
+            await ReconcileCaptureAsync(config.Enabled, proxy?.UdpEndPoint.Port ?? config.ListenPort).ConfigureAwait(false);
             _state.LastError = null;
         }
         catch (Exception ex)

@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- Let the net10.0-windows managed projects (Service, Ebpf) cross-compile on Linux/macOS
+    <!-- Let the net10.0-windows managed projects (Service, WinDivert) cross-compile on Linux/macOS
          (CI, Docker) by pulling the Windows reference packs. Harmless on Windows. The WinUI
          app still needs real Windows tooling and is excluded from non-Windows builds. -->
     <EnableWindowsTargeting Condition="!$([MSBuild]::IsOSPlatform('Windows'))">true</EnableWindowsTargeting>
