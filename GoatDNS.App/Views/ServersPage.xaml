@@ -79,6 +79,7 @@
                         <ColumnDefinition Width="2*" />
                         <ColumnDefinition Width="110" />
                         <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="90" />
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource ColumnHeaderButtonStyle}"
                             Content="{x:Bind ViewModel.NameHeader, Mode=OneWay}"
@@ -89,13 +90,18 @@
                     <Button Grid.Column="2" Style="{StaticResource ColumnHeaderButtonStyle}"
                             Content="{x:Bind ViewModel.EndpointHeader, Mode=OneWay}"
                             Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Endpoint" />
+                    <Button Grid.Column="3" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.CheckHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Check" />
                 </Grid>
 
                 <ListView
+                    x:Name="ServerList"
                     Grid.Row="1"
-                    SelectionMode="Single"
+                    SelectionMode="Extended"
                     ItemsSource="{x:Bind ViewModel.Visible}"
                     SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
+                    SelectionChanged="List_SelectionChanged"
                     DoubleTapped="List_DoubleTapped">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
@@ -125,10 +131,12 @@
                                     <ColumnDefinition Width="2*" />
                                     <ColumnDefinition Width="110" />
                                     <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="90" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
                                 <TextBlock Grid.Column="1" Text="{x:Bind ProtocolLabel, Mode=OneWay}" VerticalAlignment="Center" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
                                 <TextBlock Grid.Column="2" Text="{x:Bind Endpoint, Mode=OneWay}" VerticalAlignment="Center" FontFamily="Consolas" TextTrimming="CharacterEllipsis" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
+                                <TextBlock Grid.Column="3" Text="{x:Bind CheckText, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Right" FontFamily="Consolas" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

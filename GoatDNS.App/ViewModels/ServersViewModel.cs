@@ -22,6 +22,10 @@ public partial class ServersViewModel : ObservableObject
 
     [ObservableProperty] private ServerItemViewModel? _selected;
 
+    // Mirrors the table's SelectedItems (multi-select). Actions run over the whole selection;
+    // Selected stays the single-row fallback for programmatic callers (Commit, Load, import).
+    private readonly List<ServerItemViewModel> _selection = [];
+
     /// <summary>Live filter text (matches name / protocol / address).</summary>
     [ObservableProperty] private string _filter = "";
 
@@ -33,6 +37,7 @@ public partial class ServersViewModel : ObservableObject
     public string NameHeader => "Name" + Arrow("Name");
     public string ProtocolHeader => "Protocol" + Arrow("Protocol");
     public string EndpointHeader => "Address / URL" + Arrow("Endpoint");
+    public string CheckHeader => "Check" + Arrow("Check");
     private string Arrow(string key) => SortKey == key ? (SortDescending ? "  ▼" : "  ▲") : "";
 
     /// <summary>Text box holding an <c>sdns://</c> stamp to import.</summary>
@@ -75,6 +80,7 @@ public partial class ServersViewModel : ObservableObject
         OnPropertyChanged(nameof(NameHeader));
         OnPropertyChanged(nameof(ProtocolHeader));
         OnPropertyChanged(nameof(EndpointHeader));
+        OnPropertyChanged(nameof(CheckHeader));
     }
 
     /// <summary>Clicking a column header sorts by it; clicking the active column flips the direction.</summary>
@@ -93,16 +99,27 @@ public partial class ServersViewModel : ObservableObject
 
     private void RefreshView()
     {
-        Func<ServerItemViewModel, string> key = SortKey switch
-        {
-            "Protocol" => s => s.ProtocolLabel,
-            "Endpoint" => s => s.Endpoint,
-            _ => s => s.Name,
-        };
         var filtered = Items.Where(Matches);
-        var ordered = SortDescending
-            ? filtered.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
-            : filtered.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+        IEnumerable<ServerItemViewModel> ordered;
+        if (SortKey == "Check")
+        {
+            // Latency sorts numerically, not as text; untested/failed rows sink to the bottom either way.
+            ordered = SortDescending
+                ? filtered.OrderByDescending(s => s.LatencyMs ?? -1)
+                : filtered.OrderBy(s => s.LatencyMs ?? int.MaxValue);
+        }
+        else
+        {
+            Func<ServerItemViewModel, string> key = SortKey switch
+            {
+                "Protocol" => s => s.ProtocolLabel,
+                "Endpoint" => s => s.Endpoint,
+                _ => s => s.Name,
+            };
+            ordered = SortDescending
+                ? filtered.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
+                : filtered.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+        }
         ListProjection.Reproject(Visible, ordered, () => Selected, v => Selected = v);
     }
 
@@ -122,7 +139,20 @@ public partial class ServersViewModel : ObservableObject
         RefreshView();
     }
 
-    private bool HasSelection() => Selected is not null;
+    /// <summary>Called by the page whenever the table's selection changes.</summary>
+    public void SetSelection(IEnumerable<ServerItemViewModel> items)
+    {
+        _selection.Clear();
+        _selection.AddRange(items);
+        DeleteCommand.NotifyCanExecuteChanged();
+        TestSelectedCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Rows the Delete/Test actions apply to: the selection, or Selected when it is empty.</summary>
+    private List<ServerItemViewModel> Targets =>
+        _selection.Count > 0 ? [.. _selection] : Selected is { } s ? [s] : [];
+
+    private bool HasSelection() => _selection.Count > 0 || Selected is not null;
 
     partial void OnSelectedChanged(ServerItemViewModel? value)
     {
@@ -133,30 +163,40 @@ public partial class ServersViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void Delete()
     {
-        if (Selected is { } s)
-        {
-            Items.Remove(s);
-            Selected = Items.FirstOrDefault();
-            RefreshView();
-        }
+        var targets = Targets;
+        if (targets.Count == 0) return;
+        foreach (var s in targets) Items.Remove(s);
+        Selected = Items.FirstOrDefault();
+        RefreshView();
     }
 
     /// <summary>
-    /// Probes the selected server via the service, colouring it green/red. Note: the service resolves
-    /// the name against its *applied* config, so a server that hasn't been Applied yet returns
-    /// "No server named …" — which we treat as "unknown" (uncoloured), not a failure.
+    /// Probes every selected server via the service, colouring each green/red and filling its Check
+    /// column. Note: the service resolves the name against its *applied* config, so a server that
+    /// hasn't been Applied yet returns "No server named …" — which we treat as "unknown"
+    /// (uncoloured), not a failure.
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private async Task TestSelectedAsync()
     {
-        if (Selected is null) return;
+        var targets = Targets;
+        if (targets.Count == 0) return;
         IsTesting = true;
         ResultOpen = false;
         try
         {
-            var (ok, message) = await ProbeAsync(Selected);
-            ResultMessage = message;
-            ResultIsError = !ok;
+            if (targets.Count == 1)
+            {
+                var (ok, message) = await ProbeAsync(targets[0]);
+                ResultMessage = message;
+                ResultIsError = !ok;
+            }
+            else
+            {
+                var (ok, failed) = await ProbeManyAsync(targets);
+                ResultMessage = $"Tested {targets.Count} server(s): {ok} OK, {failed} failed.";
+                ResultIsError = ok == 0 && failed > 0;
+            }
         }
         finally
         {
@@ -172,15 +212,9 @@ public partial class ServersViewModel : ObservableObject
         if (Items.Count == 0) return;
         IsTesting = true;
         ResultOpen = false;
-        int ok = 0, failed = 0;
         try
         {
-            foreach (var s in Items.ToList())
-            {
-                var (passed, _) = await ProbeAsync(s);
-                if (passed) ok++;
-                else if (s.Health == ServerHealth.Failed) failed++; // skip "not applied yet"
-            }
+            var (ok, failed) = await ProbeManyAsync(Items.ToList());
             ShowResult($"Tested {Items.Count} server(s): {ok} OK, {failed} failed.", isError: ok == 0 && failed > 0);
         }
         finally
@@ -189,22 +223,55 @@ public partial class ServersViewModel : ObservableObject
         }
     }
 
+    // Sequential on purpose: probing in parallel would open every upstream at once.
+    private async Task<(int Ok, int Failed)> ProbeManyAsync(IEnumerable<ServerItemViewModel> servers)
+    {
+        int ok = 0, failed = 0;
+        foreach (var s in servers)
+        {
+            var (passed, _) = await ProbeAsync(s);
+            if (passed) ok++;
+            else if (s.Health == ServerHealth.Failed) failed++; // skip "not applied yet"
+        }
+        return (ok, failed);
+    }
+
     // Tests one server and sets its Health. "No server named" means it isn't Applied yet (not a
     // failure), so we leave that row uncoloured. Never throws — returns the message to show.
     private async Task<(bool Ok, string Message)> ProbeAsync(ServerItemViewModel s)
     {
+        s.IsChecking = true;
         try
         {
             var message = await _main.Backend.TestServerAsync(s.Name);
             s.Health = ServerHealth.Ok;
+            s.LatencyMs = ParseLatency(message);
             return (true, message);
         }
         catch (Exception ex)
         {
             if (!ex.Message.Contains("No server named", StringComparison.OrdinalIgnoreCase))
                 s.Health = ServerHealth.Failed;
+            s.LatencyMs = null;
             return (false, ex.Message);
         }
+        finally
+        {
+            s.IsChecking = false;
+        }
+    }
+
+    // The probe already times the round trip service-side and formats it into its OK message
+    // ("… in 42 ms"), so read the number back out of that rather than widening the IPC contract.
+    // ponytail: format-coupled to GoatDnsHost.TestServerAsync; give the IPC a typed result if a
+    // second caller ever needs the number.
+    private static int? ParseLatency(string message)
+    {
+        int start = message.LastIndexOf(" in ", StringComparison.Ordinal);
+        int end = message.LastIndexOf(" ms", StringComparison.Ordinal);
+        return start >= 0 && end > start + 4 && int.TryParse(message.AsSpan(start + 4, end - start - 4), out int ms)
+            ? ms
+            : null;
     }
 
     [RelayCommand]

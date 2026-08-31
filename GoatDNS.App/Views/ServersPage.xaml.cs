@@ -41,6 +41,10 @@ public sealed partial class ServersPage : Page
 
     private async void Edit_Click(object sender, RoutedEventArgs e) => await EditAsync();
 
+    // Keep the view-model's multi-selection in step with the table's.
+    private void List_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        => ViewModel.SetSelection(ServerList.SelectedItems.OfType<ServerItemViewModel>());
+
     private async void List_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         => await EditAsync();
 
@@ -49,19 +53,28 @@ public sealed partial class ServersPage : Page
     private ServerItemViewModel? MenuItemTarget(object sender) =>
         (sender as FrameworkElement)?.DataContext as ServerItemViewModel;
 
+    // Right-clicking inside the selection acts on the whole selection; right-clicking outside it
+    // selects just that row first, which is what every other Windows list does.
+    private void SelectForMenu(ServerItemViewModel item)
+    {
+        if (ServerList.SelectedItems.Contains(item)) return;
+        ServerList.SelectedItems.Clear();
+        ServerList.SelectedItems.Add(item);
+    }
+
     private async void RowEdit_Click(object sender, RoutedEventArgs e)
     {
-        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; await EditAsync(item); }
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; await EditAsync(item); }  // edit is single-row
     }
 
     private void RowTest_Click(object sender, RoutedEventArgs e)
     {
-        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.TestSelectedCommand.Execute(null); }
+        if (MenuItemTarget(sender) is { } item) { SelectForMenu(item); ViewModel.TestSelectedCommand.Execute(null); }
     }
 
     private void RowDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.DeleteCommand.Execute(null); }
+        if (MenuItemTarget(sender) is { } item) { SelectForMenu(item); ViewModel.DeleteCommand.Execute(null); }
     }
 
     /// <summary>Import menu → sdns:// stamp: prompt for the stamp, then hand it to the view-model.</summary>

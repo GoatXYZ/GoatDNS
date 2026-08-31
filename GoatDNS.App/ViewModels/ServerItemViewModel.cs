@@ -21,7 +21,21 @@ public partial class ServerItemViewModel : ObservableObject
     private static readonly SolidColorBrush FailedBrush = new(Colors.IndianRed);
 
     /// <summary>Last Test result; untested servers stay <see cref="ServerHealth.Unknown"/> (default colour).</summary>
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(HealthBrush))] private ServerHealth _health;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(HealthBrush))][NotifyPropertyChangedFor(nameof(CheckText))] private ServerHealth _health;
+
+    /// <summary>Round-trip of the last successful Test, as measured by the service's probe.</summary>
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CheckText))] private int? _latencyMs;
+
+    /// <summary>True while this row's Test is in flight (tests run one server at a time).</summary>
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CheckText))] private bool _isChecking;
+
+    /// <summary>Check column: the last probe's round-trip, or its state when there is no number.</summary>
+    public string CheckText => IsChecking ? "…" : Health switch
+    {
+        ServerHealth.Ok => LatencyMs is int ms ? $"{ms} ms" : "OK",
+        ServerHealth.Failed => "fail",
+        _ => "—",
+    };
 
     /// <summary>Row foreground: green when the last Test passed, red when it failed, theme default otherwise.</summary>
     public Brush HealthBrush => Health switch
