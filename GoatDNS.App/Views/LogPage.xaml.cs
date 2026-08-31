@@ -19,6 +19,11 @@ public sealed partial class LogPage : Page
 {
     private static readonly SolidColorBrush ErrorBrush = new(Colors.IndianRed);
 
+    // Sticky tail-following. Only user scrolling flips it (see LogScroll_ViewChanged); sampling the
+    // offset at append time is unreliable because a burst of rows lands before layout catches up.
+    private bool _follow = true;
+    private bool _scrollQueued;
+
     public LogPage()
     {
         ViewModel = App.Vm.Log;
@@ -46,11 +51,9 @@ public sealed partial class LogPage : Page
         switch (e.Action)
         {
             case NotifyCollectionChangedAction.Add when e.NewItems is not null:
-                // Follow the tail only if we were already at the bottom — otherwise the user is
-                // scrolled up reading/selecting history, and yanking to the end would fight them.
-                bool follow = IsAtBottom();
+                // Follow the tail unless the user scrolled up to read/select history.
                 foreach (LogRow row in e.NewItems) LogText.Blocks.Add(Render(row));
-                if (follow) ScrollToEnd();
+                if (_follow) ScrollToEnd();
                 break;
             case NotifyCollectionChangedAction.Remove when e.OldStartingIndex == 0 && LogText.Blocks.Count > 0:
                 LogText.Blocks.RemoveAt(0);
@@ -61,19 +64,36 @@ public sealed partial class LogPage : Page
         }
     }
 
-    // Within a small slop of the bottom (also true at startup when extent/offset are both 0).
-    private bool IsAtBottom() => LogScroll.ScrollableHeight - LogScroll.VerticalOffset <= 40;
+    // Only user-driven scrolls report intermediate views; our own ChangeView calls never do, so this
+    // reads the user's intent without fighting the programmatic jumps.
+    private void LogScroll_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
+    {
+        if (e.IsIntermediate)
+            _follow = LogScroll.ScrollableHeight - LogScroll.VerticalOffset <= 40;
+    }
 
     private void RebuildAll()
     {
         LogText.Blocks.Clear();
         foreach (var row in ViewModel.Rows) LogText.Blocks.Add(Render(row));
+        _follow = true;
         ScrollToEnd();
     }
 
-    // Defer the scroll so it runs after the newly-added block has been laid out.
+    // Coalesce to one scroll per frame and force the pending layout first: ScrollableHeight still
+    // reports the old extent until the newly-added blocks are measured, so scrolling to it lands
+    // short and, once short by more than the slop, the view never catches up again.
     private void ScrollToEnd()
-        => DispatcherQueue.TryEnqueue(() => LogScroll.ChangeView(null, LogScroll.ScrollableHeight, null, disableAnimation: true));
+    {
+        if (_scrollQueued) return;
+        _scrollQueued = true;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            _scrollQueued = false;
+            LogScroll.UpdateLayout();
+            LogScroll.ChangeView(null, LogScroll.ScrollableHeight, null, disableAnimation: true);
+        });
+    }
 
     private void Copy_Click(object sender, RoutedEventArgs e)
     {
