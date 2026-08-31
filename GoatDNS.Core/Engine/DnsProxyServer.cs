@@ -43,8 +43,13 @@ public sealed class DnsProxyServer(DnsEngine engine, QueryLog log, IFlowResolver
             DisableUdpConnReset(udp);
             udp.Bind(new IPEndPoint(addr, port));
             _udpSockets.Add(udp);
-            // The IPv4 endpoint defines the canonical listen port reported to callers.
-            if (first) UdpEndPoint = (IPEndPoint)udp.LocalEndPoint!;
+            // The IPv4 endpoint defines the canonical listen port reported to callers. With port 0
+            // the OS picks it here, and every later bind (TCP, IPv6) reuses that concrete port.
+            if (first)
+            {
+                UdpEndPoint = (IPEndPoint)udp.LocalEndPoint!;
+                port = UdpEndPoint.Port;
+            }
 
             var tcp = new Socket(addr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             tcp.Bind(new IPEndPoint(addr, port));

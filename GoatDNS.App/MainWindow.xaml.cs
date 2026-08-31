@@ -26,6 +26,10 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Resize(new SizeInt32 { Width = 1100, Height = 760 });
 
+        // Unpackaged apps don't reliably pick up the exe icon for the title bar; set it explicitly.
+        var icon = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "goatdns-app-icon.ico");
+        if (System.IO.File.Exists(icon)) AppWindow.SetIcon(icon);
+
         // Intercept the close box: hide to tray instead of exiting.
         AppWindow.Closing += OnAppWindowClosing;
 

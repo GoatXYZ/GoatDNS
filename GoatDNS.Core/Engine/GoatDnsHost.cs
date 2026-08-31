@@ -53,8 +53,9 @@ public sealed class GoatDnsHost(QueryLog log, Func<DnsEngine, ICaptureProvider>?
             if (_proxy is { } oldProxy) await oldProxy.DisposeAsync().ConfigureAwait(false);
             var capture = _capture is NullCaptureProvider ? _captureFactory(engine) : _capture;
 
-            // The loopback proxy is an optional manual resolver on ListenPort; a bind failure (e.g. a
-            // Windows reserved port range) must not stop interception, which answers inline.
+            // The loopback proxy is an optional manual resolver on ListenPort. If that port can't be
+            // bound (e.g. it falls in a Windows excluded port range), fall back to an OS-assigned free
+            // port rather than erroring on every Apply; interception answers inline either way.
             DnsProxyServer? proxy = new(engine, log, capture.Flows);
             try
             {
@@ -62,10 +63,20 @@ public sealed class GoatDnsHost(QueryLog log, Func<DnsEngine, ICaptureProvider>?
             }
             catch (Exception ex)
             {
-                log.Error($"Loopback proxy on port {config.ListenPort} unavailable ({ex.Message}); " +
-                          "interception is unaffected. Pick a free ListenPort to use the manual resolver.");
                 await proxy.DisposeAsync().ConfigureAwait(false);
-                proxy = null;
+                proxy = new DnsProxyServer(engine, log, capture.Flows);
+                try
+                {
+                    proxy.Start(IPAddress.Loopback, 0);
+                    log.Info($"Port {config.ListenPort} unavailable ({ex.Message}); " +
+                             $"manual resolver listening on port {proxy.UdpEndPoint.Port} instead.");
+                }
+                catch (Exception ex2)
+                {
+                    log.Error($"Loopback proxy unavailable ({ex2.Message}); interception is unaffected.");
+                    await proxy.DisposeAsync().ConfigureAwait(false);
+                    proxy = null;
+                }
             }
 
             lock (_stateLock)

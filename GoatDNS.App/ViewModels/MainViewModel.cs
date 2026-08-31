@@ -223,15 +223,50 @@ public partial class MainViewModel : ObservableObject
     {
         LastError = null;
         bool target = !InterceptionEnabled;
+        IsBusy = true;
         try
         {
-            await Backend.SetEnabledAsync(target);
+            // Enabling while the service is down shouldn't just error out: start the service first
+            // (UAC prompt if we aren't elevated), then flip the switch once its pipe is up.
+            if (target && !Backend.IsLocal && !IsServiceAvailable)
+            {
+                if (await Task.Run(() => ServiceControl.Query()) == Services.ServiceState.NotInstalled)
+                {
+                    LastError = "The GoatDNS service isn't installed. Install it in Options, or run in DNS mode.";
+                    return;
+                }
+                var (ok, message) = await Task.Run(() => ServiceControl.EnsureAction("start"));
+                if (!ok) { LastError = message; return; }
+            }
+
+            await SetEnabledWithRetryAsync(target);
             Options.Enabled = target; // keep the Options page's persisted toggle in sync with the live state
             await RefreshStatusAsync();
         }
         catch (Exception ex)
         {
             LastError = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>A freshly started service needs a moment to open its IPC pipe; retry briefly.</summary>
+    private async Task SetEnabledWithRetryAsync(bool target)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await Backend.SetEnabledAsync(target);
+                return;
+            }
+            catch (IpcUnavailableException) when (attempt < 10)
+            {
+                await Task.Delay(500);
+            }
         }
     }
 

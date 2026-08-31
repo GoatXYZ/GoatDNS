@@ -46,15 +46,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- The live status readout (mode · capturing · port · queries) lives here now;
-                     there is no separate bottom status bar. -->
-                <TextBlock
-                    Grid.Column="0"
-                    VerticalAlignment="Center"
-                    Opacity="0.7"
-                    TextTrimming="CharacterEllipsis"
-                    Text="{x:Bind ViewModel.StatusSummary, Mode=OneWay}" />
-
+                <!-- Column 0 is intentionally empty: no status readout, actions keep to the right. -->
                 <ProgressRing
                     Grid.Column="1"
                     Width="18" Height="18"
@@ -139,7 +131,7 @@
         <tb:TaskbarIcon
             x:Name="TrayIcon"
             Grid.Row="2"
-            ToolTipText="GoatDNS"
+            ToolTipText="{x:Bind ViewModel.StatusSummary, Mode=OneWay}"
             IconSource="/Assets/goatdns-app-icon.ico"
             ContextMenuMode="SecondWindow"
             LeftClickCommand="{x:Bind ShowFromTrayCommand}">
