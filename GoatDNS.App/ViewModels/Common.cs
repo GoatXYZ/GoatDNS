@@ -1,6 +1,25 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace GoatDNS.App.ViewModels;
+
+/// <summary>
+/// Shared plumbing for the list pages' filter/sort box: rebuilds a <c>Visible</c> projection from the
+/// backing list while preserving the current selection when it survives the new projection. WinUI's
+/// CollectionViewSource has no Filter, so each list VM keeps a real <see cref="ObservableCollection{T}"/>
+/// it re-projects here.
+/// </summary>
+internal static class ListProjection
+{
+    public static void Reproject<T>(ObservableCollection<T> visible, IEnumerable<T> ordered,
+        Func<T?> getSelected, Action<T?> setSelected) where T : class
+    {
+        var keep = getSelected();
+        visible.Clear();
+        foreach (var item in ordered) visible.Add(item);
+        setSelected(keep is not null && visible.Contains(keep) ? keep : visible.FirstOrDefault());
+    }
+}
 
 /// <summary>A named, checkable row used by the multi-select editors (pool membership, rule hosts-files).</summary>
 public partial class SelectableItem : ObservableObject

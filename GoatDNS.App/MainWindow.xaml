@@ -9,8 +9,8 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <!-- Banners -->
@@ -30,10 +30,63 @@
                 CloseButtonClick="ErrorBar_CloseButtonClick" />
         </StackPanel>
 
+        <!-- Top command bar: the always-visible global actions (interception toggle, reload, apply). -->
+        <Border
+            Grid.Row="1"
+            Padding="12,8"
+            BorderThickness="0,0,0,1"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- The live status readout (mode · capturing · port · queries) lives here now;
+                     there is no separate bottom status bar. -->
+                <TextBlock
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Opacity="0.7"
+                    TextTrimming="CharacterEllipsis"
+                    Text="{x:Bind ViewModel.StatusSummary, Mode=OneWay}" />
+
+                <ProgressRing
+                    Grid.Column="1"
+                    Width="18" Height="18"
+                    VerticalAlignment="Center"
+                    IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+
+                <Button
+                    Grid.Column="2"
+                    MinWidth="150"
+                    Content="{x:Bind ViewModel.InterceptionMenuLabel, Mode=OneWay}"
+                    Command="{x:Bind ViewModel.ToggleInterceptionCommand}"
+                    ToolTipService.ToolTip="Turn system-wide DNS interception on or off. Off = your normal DNS is used; nothing else changes." />
+
+                <Button
+                    Grid.Column="3"
+                    Content="Reload"
+                    Command="{x:Bind ViewModel.ReloadCommand}"
+                    ToolTipService.ToolTip="Discard unapplied edits and re-read the configuration the service is currently running." />
+
+                <Button
+                    Grid.Column="4"
+                    Content="Apply"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Command="{x:Bind ViewModel.ApplyCommand}"
+                    ToolTipService.ToolTip="Push your edits (servers, pools, rules, options) to the service. Changes take effect immediately and are saved." />
+            </Grid>
+        </Border>
+
         <!-- Navigation + page host -->
         <NavigationView
             x:Name="Nav"
-            Grid.Row="1"
+            Grid.Row="2"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
             PaneDisplayMode="Left"
@@ -61,53 +114,26 @@
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>
 
+            <!-- Quit sits at the very bottom of the pane, away from the page list and the Apply button. -->
+            <NavigationView.PaneFooter>
+                <Button
+                    Margin="4,4,4,8"
+                    Padding="12,8"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Command="{x:Bind ViewModel.QuitCommand}"
+                    ToolTipService.ToolTip="Stop the service / interception and close GoatDNS">
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <FontIcon Glyph="&#xE7E8;" FontSize="16" />
+                        <TextBlock Text="Quit" />
+                    </StackPanel>
+                </Button>
+            </NavigationView.PaneFooter>
+
             <Frame x:Name="ContentFrame" />
         </NavigationView>
-
-        <!-- Status bar -->
-        <Border
-            Grid.Row="2"
-            Padding="12,6"
-            BorderThickness="0,1,0,0"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-            <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock
-                    Grid.Column="0"
-                    VerticalAlignment="Center"
-                    TextTrimming="CharacterEllipsis"
-                    Text="{x:Bind ViewModel.StatusSummary, Mode=OneWay}" />
-
-                <ProgressRing
-                    Grid.Column="1"
-                    Width="18" Height="18"
-                    IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-
-                <Button
-                    Grid.Column="2"
-                    Content="{x:Bind ViewModel.InterceptionMenuLabel, Mode=OneWay}"
-                    Command="{x:Bind ViewModel.ToggleInterceptionCommand}" />
-
-                <Button
-                    Grid.Column="3"
-                    Content="Reload"
-                    Command="{x:Bind ViewModel.ReloadCommand}" />
-
-                <Button
-                    Grid.Column="4"
-                    Content="Apply"
-                    Style="{StaticResource AccentButtonStyle}"
-                    Command="{x:Bind ViewModel.ApplyCommand}" />
-            </Grid>
-        </Border>
 
         <!-- Tray icon (non-visual). Lives in the window tree so its generated icon has a XamlRoot. -->
         <tb:TaskbarIcon
@@ -124,7 +150,9 @@
                         Click="TrayToggle_Click" />
                     <MenuFlyoutSeparator />
                     <MenuFlyoutItem Text="Open" Click="TrayOpen_Click" />
-                    <MenuFlyoutItem Text="Exit" Click="TrayExit_Click" />
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem Text="Quit (stop service &amp; exit)" Click="TrayQuit_Click" />
+                    <MenuFlyoutItem Text="Exit (leave service running)" Click="TrayExit_Click" />
                 </MenuFlyout>
             </tb:TaskbarIcon.ContextFlyout>
         </tb:TaskbarIcon>

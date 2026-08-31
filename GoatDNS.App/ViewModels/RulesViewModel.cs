@@ -17,7 +17,13 @@ public partial class RulesViewModel : ObservableObject
 
     public ObservableCollection<RuleItemViewModel> Items { get; } = [];
 
+    /// <summary>Filtered projection of <see cref="Items"/> that the table binds to. Rules keep their
+    /// manual order (they're evaluated top-to-bottom), so this filters but never sorts.</summary>
+    public ObservableCollection<RuleItemViewModel> Visible { get; } = [];
+
     [ObservableProperty] private RuleItemViewModel? _selected;
+
+    [ObservableProperty] private string _filter = "";
 
     /// <summary>Pool names then server names — the rule editor's target choices.</summary>
     public IEnumerable<string> PoolAndServerTargets =>
@@ -31,7 +37,20 @@ public partial class RulesViewModel : ObservableObject
         Items.Clear();
         foreach (var r in rules) Items.Add(new RuleItemViewModel(r));
         Selected = Items.FirstOrDefault();
+        RefreshView();
     }
+
+    partial void OnFilterChanged(string value) => RefreshView();
+
+    private bool Matches(RuleItemViewModel r) =>
+        Filter.Length == 0
+        || r.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || r.HostsSummary.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || r.ActionLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || r.TargetLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase);
+
+    private void RefreshView() =>
+        ListProjection.Reproject(Visible, Items.Where(Matches), () => Selected, v => Selected = v);
 
     /// <summary>New rules are inserted just above the pinned default; edits replace in place.</summary>
     public void Commit(RuleItemViewModel edited, RuleItemViewModel? original)
@@ -47,6 +66,7 @@ public partial class RulesViewModel : ObservableObject
             if (i >= 0) Items[i] = edited; else Items.Add(edited);
         }
         Selected = edited;
+        RefreshView();
     }
 
     private int SelectedIndex => Selected is null ? -1 : Items.IndexOf(Selected);
@@ -63,14 +83,14 @@ public partial class RulesViewModel : ObservableObject
     private void MoveUp()
     {
         int i = SelectedIndex;
-        if (i >= 1) { Items.Move(i, i - 1); RefreshCommands(); }
+        if (i >= 1) { Items.Move(i, i - 1); RefreshView(); RefreshCommands(); }
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveDown))]
     private void MoveDown()
     {
         int i = SelectedIndex;
-        if (i >= 0 && i < Items.Count - 1) { Items.Move(i, i + 1); RefreshCommands(); }
+        if (i >= 0 && i < Items.Count - 1) { Items.Move(i, i + 1); RefreshView(); RefreshCommands(); }
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -80,6 +100,7 @@ public partial class RulesViewModel : ObservableObject
         {
             Items.Remove(s);
             Selected = Items.FirstOrDefault();
+            RefreshView();
         }
     }
 
@@ -93,6 +114,7 @@ public partial class RulesViewModel : ObservableObject
         int at = Items.Count > 0 ? Items.Count - 1 : 0; // keep the default rule last
         Items.Insert(at, copy);
         Selected = copy;
+        RefreshView();
     }
 
     private void RefreshCommands()

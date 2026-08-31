@@ -17,7 +17,23 @@ public partial class ServersViewModel : ObservableObject
     /// <summary>Working copy of the server list; only pushed to the service on Apply.</summary>
     public ObservableCollection<ServerItemViewModel> Items { get; } = [];
 
+    /// <summary>Filtered + sorted projection of <see cref="Items"/> that the table actually binds to.</summary>
+    public ObservableCollection<ServerItemViewModel> Visible { get; } = [];
+
     [ObservableProperty] private ServerItemViewModel? _selected;
+
+    /// <summary>Live filter text (matches name / protocol / address).</summary>
+    [ObservableProperty] private string _filter = "";
+
+    /// <summary>Which column the table is sorted by, and the direction — driven by header clicks.</summary>
+    [ObservableProperty] private string _sortKey = "Name";
+    [ObservableProperty] private bool _sortDescending;
+
+    // Column header captions carry the active sort arrow.
+    public string NameHeader => "Name" + Arrow("Name");
+    public string ProtocolHeader => "Protocol" + Arrow("Protocol");
+    public string EndpointHeader => "Address / URL" + Arrow("Endpoint");
+    private string Arrow(string key) => SortKey == key ? (SortDescending ? "  ▼" : "  ▲") : "";
 
     /// <summary>Text box holding an <c>sdns://</c> stamp to import.</summary>
     [ObservableProperty] private string _stampInput = "";
@@ -45,6 +61,49 @@ public partial class ServersViewModel : ObservableObject
         Items.Clear();
         foreach (var s in servers) Items.Add(new ServerItemViewModel(s));
         Selected = Items.FirstOrDefault();
+        RefreshView();
+    }
+
+    // ---- Filter + sort projection (Items -> Visible) ----
+
+    partial void OnFilterChanged(string value) => RefreshView();
+    partial void OnSortKeyChanged(string value) { NotifyHeaders(); RefreshView(); }
+    partial void OnSortDescendingChanged(bool value) { NotifyHeaders(); RefreshView(); }
+
+    private void NotifyHeaders()
+    {
+        OnPropertyChanged(nameof(NameHeader));
+        OnPropertyChanged(nameof(ProtocolHeader));
+        OnPropertyChanged(nameof(EndpointHeader));
+    }
+
+    /// <summary>Clicking a column header sorts by it; clicking the active column flips the direction.</summary>
+    [RelayCommand]
+    private void Sort(string key)
+    {
+        if (SortKey == key) SortDescending = !SortDescending;
+        else { SortKey = key; SortDescending = false; }
+    }
+
+    private bool Matches(ServerItemViewModel s) =>
+        Filter.Length == 0
+        || s.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || s.ProtocolLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || s.Endpoint.Contains(Filter, StringComparison.OrdinalIgnoreCase);
+
+    private void RefreshView()
+    {
+        Func<ServerItemViewModel, string> key = SortKey switch
+        {
+            "Protocol" => s => s.ProtocolLabel,
+            "Endpoint" => s => s.Endpoint,
+            _ => s => s.Name,
+        };
+        var filtered = Items.Where(Matches);
+        var ordered = SortDescending
+            ? filtered.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
+            : filtered.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+        ListProjection.Reproject(Visible, ordered, () => Selected, v => Selected = v);
     }
 
     /// <summary>Adds a new server (original null) or replaces an edited one in place.</summary>
@@ -60,6 +119,7 @@ public partial class ServersViewModel : ObservableObject
             if (i >= 0) Items[i] = edited; else Items.Add(edited);
         }
         Selected = edited;
+        RefreshView();
     }
 
     private bool HasSelection() => Selected is not null;
@@ -77,12 +137,14 @@ public partial class ServersViewModel : ObservableObject
         {
             Items.Remove(s);
             Selected = Items.FirstOrDefault();
+            RefreshView();
         }
     }
 
     /// <summary>
-    /// Probes the selected server via the service. Note: the service resolves the name against its
-    /// *applied* config, so a server that hasn't been Applied yet returns "No server named …".
+    /// Probes the selected server via the service, colouring it green/red. Note: the service resolves
+    /// the name against its *applied* config, so a server that hasn't been Applied yet returns
+    /// "No server named …" — which we treat as "unknown" (uncoloured), not a failure.
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private async Task TestSelectedAsync()
@@ -92,18 +154,56 @@ public partial class ServersViewModel : ObservableObject
         ResultOpen = false;
         try
         {
-            ResultMessage = await _main.Backend.TestServerAsync(Selected.Name);
-            ResultIsError = false;
-        }
-        catch (Exception ex)
-        {
-            ResultMessage = ex.Message;
-            ResultIsError = true;
+            var (ok, message) = await ProbeAsync(Selected);
+            ResultMessage = message;
+            ResultIsError = !ok;
         }
         finally
         {
             IsTesting = false;
             ResultOpen = true;
+        }
+    }
+
+    /// <summary>Tests every server in turn, colouring each by the result (small lists only; sequential).</summary>
+    [RelayCommand]
+    private async Task TestAllAsync()
+    {
+        if (Items.Count == 0) return;
+        IsTesting = true;
+        ResultOpen = false;
+        int ok = 0, failed = 0;
+        try
+        {
+            foreach (var s in Items.ToList())
+            {
+                var (passed, _) = await ProbeAsync(s);
+                if (passed) ok++;
+                else if (s.Health == ServerHealth.Failed) failed++; // skip "not applied yet"
+            }
+            ShowResult($"Tested {Items.Count} server(s): {ok} OK, {failed} failed.", isError: ok == 0 && failed > 0);
+        }
+        finally
+        {
+            IsTesting = false;
+        }
+    }
+
+    // Tests one server and sets its Health. "No server named" means it isn't Applied yet (not a
+    // failure), so we leave that row uncoloured. Never throws — returns the message to show.
+    private async Task<(bool Ok, string Message)> ProbeAsync(ServerItemViewModel s)
+    {
+        try
+        {
+            var message = await _main.Backend.TestServerAsync(s.Name);
+            s.Health = ServerHealth.Ok;
+            return (true, message);
+        }
+        catch (Exception ex)
+        {
+            if (!ex.Message.Contains("No server named", StringComparison.OrdinalIgnoreCase))
+                s.Health = ServerHealth.Failed;
+            return (false, ex.Message);
         }
     }
 
@@ -121,6 +221,7 @@ public partial class ServersViewModel : ObservableObject
             Items.Add(vm);
             Selected = vm;
             StampInput = "";
+            RefreshView();
             ShowResult($"Imported '{vm.Name}'. Review, then Apply.", isError: false);
         }
         catch (Exception ex)
@@ -154,6 +255,7 @@ public partial class ServersViewModel : ObservableObject
                 added++;
             }
             Selected ??= Items.FirstOrDefault();
+            RefreshView();
             ShowResult($"Imported {added} server(s) from the {label}. Review, then Apply.", isError: false);
         }
         catch (Exception ex)

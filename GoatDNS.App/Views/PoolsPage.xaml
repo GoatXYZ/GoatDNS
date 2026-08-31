@@ -14,13 +14,23 @@
 
         <TextBlock Grid.Row="0" Text="Pools" Style="{StaticResource TitleTextBlockStyle}" />
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-            <Button Content="Add" Click="Add_Click" />
-            <Button Content="Edit" Click="Edit_Click" />
-            <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
-        </StackPanel>
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <Button Content="Add" Click="Add_Click" />
+                <Button Content="Edit" Click="Edit_Click" />
+                <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
+            </StackPanel>
+            <TextBox
+                Grid.Column="1"
+                Width="260"
+                PlaceholderText="Filter pools…"
+                Text="{x:Bind ViewModel.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
 
-        <!-- Columned table (Name · Strategy · Members). -->
         <Border Grid.Row="2" BorderThickness="1" CornerRadius="4"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
             <Grid>
@@ -37,15 +47,21 @@
                         <ColumnDefinition Width="130" />
                         <ColumnDefinition Width="3*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource ColumnHeaderTextStyle}" />
-                    <TextBlock Grid.Column="1" Text="Strategy" Style="{StaticResource ColumnHeaderTextStyle}" />
-                    <TextBlock Grid.Column="2" Text="Members" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <Button Grid.Column="0" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.NameHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Name" />
+                    <Button Grid.Column="1" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.StrategyHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Strategy" />
+                    <Button Grid.Column="2" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.MembersHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Members" />
                 </Grid>
 
                 <ListView
                     Grid.Row="1"
                     SelectionMode="Single"
-                    ItemsSource="{x:Bind ViewModel.Items}"
+                    ItemsSource="{x:Bind ViewModel.Visible}"
                     SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
                     DoubleTapped="List_DoubleTapped">
                     <ListView.ItemContainerStyle>
@@ -56,7 +72,19 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:PoolItemViewModel">
-                            <Grid Padding="12,8" ColumnSpacing="12">
+                            <!-- Transparent background so the whole row (not just the text) is right-clickable. -->
+                            <Grid Padding="12,8" ColumnSpacing="12" Background="Transparent">
+                                <Grid.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Edit…" Click="RowEdit_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70F;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutSeparator />
+                                        <MenuFlyoutItem Text="Delete" Click="RowDelete_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74D;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </Grid.ContextFlyout>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="2*" />
                                     <ColumnDefinition Width="130" />

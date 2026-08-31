@@ -41,4 +41,19 @@ public sealed partial class PoolsPage : Page
         var dialog = new PoolEditDialog(draft) { XamlRoot = XamlRoot };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
+
+    // ---- Row context menu: select the right-clicked row, then reuse the toolbar actions ----
+
+    private PoolItemViewModel? MenuItemTarget(object sender) =>
+        (sender as FrameworkElement)?.DataContext as PoolItemViewModel;
+
+    private async void RowEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; await EditAsync(); }
+    }
+
+    private void RowDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.DeleteCommand.Execute(null); }
+    }
 }

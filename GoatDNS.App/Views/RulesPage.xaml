@@ -15,19 +15,30 @@
 
         <TextBlock Grid.Row="0" Text="Rules" Style="{StaticResource TitleTextBlockStyle}" />
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-            <Button Content="Add" Click="Add_Click" />
-            <Button Content="Edit" Click="Edit_Click" />
-            <Button Content="Clone" Command="{x:Bind ViewModel.CloneCommand}" />
-            <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
-            <AppBarSeparator />
-            <Button Command="{x:Bind ViewModel.MoveUpCommand}" ToolTipService.ToolTip="Move up">
-                <FontIcon Glyph="&#xE70E;" />
-            </Button>
-            <Button Command="{x:Bind ViewModel.MoveDownCommand}" ToolTipService.ToolTip="Move down">
-                <FontIcon Glyph="&#xE70D;" />
-            </Button>
-        </StackPanel>
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <Button Content="Add" Click="Add_Click" />
+                <Button Content="Edit" Click="Edit_Click" />
+                <Button Content="Clone" Command="{x:Bind ViewModel.CloneCommand}" />
+                <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
+                <AppBarSeparator />
+                <Button Command="{x:Bind ViewModel.MoveUpCommand}" ToolTipService.ToolTip="Move up">
+                    <FontIcon Glyph="&#xE70E;" />
+                </Button>
+                <Button Command="{x:Bind ViewModel.MoveDownCommand}" ToolTipService.ToolTip="Move down">
+                    <FontIcon Glyph="&#xE70D;" />
+                </Button>
+            </StackPanel>
+            <TextBox
+                Grid.Column="1"
+                Width="260"
+                PlaceholderText="Filter rules…"
+                Text="{x:Bind ViewModel.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
 
         <TextBlock
             Grid.Row="2"
@@ -63,7 +74,7 @@
                 <ListView
                     Grid.Row="1"
                     SelectionMode="Single"
-                    ItemsSource="{x:Bind ViewModel.Items}"
+                    ItemsSource="{x:Bind ViewModel.Visible}"
                     SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
                     DoubleTapped="List_DoubleTapped">
                     <ListView.ItemContainerStyle>
@@ -74,7 +85,22 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:RuleItemViewModel">
-                            <Grid Padding="12,8" ColumnSpacing="12">
+                            <!-- Transparent background so the whole row (not just the text) is right-clickable. -->
+                            <Grid Padding="12,8" ColumnSpacing="12" Background="Transparent">
+                                <Grid.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Edit…" Click="RowEdit_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70F;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutItem Text="Clone" Click="RowClone_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C8;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutSeparator />
+                                        <MenuFlyoutItem Text="Delete" Click="RowDelete_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74D;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </Grid.ContextFlyout>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="1.6*" />

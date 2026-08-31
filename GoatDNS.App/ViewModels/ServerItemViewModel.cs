@@ -1,8 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GoatDNS.Core.Config;
 using GoatDNS.Core.Stamps;
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 namespace GoatDNS.App.ViewModels;
+
+/// <summary>Result of the last connectivity Test for a server; drives the row colour (green/red).</summary>
+public enum ServerHealth { Unknown, Ok, Failed }
 
 /// <summary>
 /// Observable mirror of <see cref="ServerDefinition"/>. Serves as both the list row and the
@@ -11,6 +17,20 @@ namespace GoatDNS.App.ViewModels;
 /// </summary>
 public partial class ServerItemViewModel : ObservableObject
 {
+    private static readonly SolidColorBrush OkBrush = new(Colors.SeaGreen);
+    private static readonly SolidColorBrush FailedBrush = new(Colors.IndianRed);
+
+    /// <summary>Last Test result; untested servers stay <see cref="ServerHealth.Unknown"/> (default colour).</summary>
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(HealthBrush))] private ServerHealth _health;
+
+    /// <summary>Row foreground: green when the last Test passed, red when it failed, theme default otherwise.</summary>
+    public Brush HealthBrush => Health switch
+    {
+        ServerHealth.Ok => OkBrush,
+        ServerHealth.Failed => FailedBrush,
+        _ => (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
+    };
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Summary))]
     private string _name = "New Server";

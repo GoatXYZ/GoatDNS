@@ -250,6 +250,29 @@ public partial class MainViewModel : ObservableObject
 
     public bool CanStartDnsMode => !IsDnsMode;
 
+    /// <summary>Raised when the user chooses Quit; the window performs the actual close.</summary>
+    public event Action? ExitRequested;
+
+    /// <summary>Shut everything down: stop the background service if it's running, drop in-process
+    /// interception if we're the host, then exit the app (so DNS returns to normal, nothing left behind).</summary>
+    [RelayCommand]
+    private async Task QuitAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            if (ServiceControl.Query() == ServiceState.Running)
+                await Task.Run(() => ServiceControl.EnsureAction("stop"));
+            if (Backend.IsLocal)
+                try { await Backend.SetEnabledAsync(false); } catch { /* best effort; process exit cleans up */ }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+        ExitRequested?.Invoke();
+    }
+
     // ---- Windows service control (self-elevates via UAC when the app isn't already admin) ----
 
     [RelayCommand] private Task StartService() => RunServiceActionAsync("start");

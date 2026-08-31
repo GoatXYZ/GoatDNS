@@ -41,4 +41,24 @@ public sealed partial class RulesPage : Page
         var dialog = new RuleEditDialog(draft) { XamlRoot = XamlRoot };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
+
+    // ---- Row context menu: select the right-clicked row, then reuse the toolbar actions ----
+
+    private RuleItemViewModel? MenuItemTarget(object sender) =>
+        (sender as FrameworkElement)?.DataContext as RuleItemViewModel;
+
+    private async void RowEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; await EditAsync(); }
+    }
+
+    private void RowClone_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.CloneCommand.Execute(null); }
+    }
+
+    private void RowDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.DeleteCommand.Execute(null); }
+    }
 }

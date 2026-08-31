@@ -14,7 +14,19 @@ public partial class PoolsViewModel : ObservableObject
 
     public ObservableCollection<PoolItemViewModel> Items { get; } = [];
 
+    /// <summary>Filtered + sorted projection of <see cref="Items"/> that the table binds to.</summary>
+    public ObservableCollection<PoolItemViewModel> Visible { get; } = [];
+
     [ObservableProperty] private PoolItemViewModel? _selected;
+
+    [ObservableProperty] private string _filter = "";
+    [ObservableProperty] private string _sortKey = "Name";
+    [ObservableProperty] private bool _sortDescending;
+
+    public string NameHeader => "Name" + Arrow("Name");
+    public string StrategyHeader => "Strategy" + Arrow("Strategy");
+    public string MembersHeader => "Members" + Arrow("Members");
+    private string Arrow(string key) => SortKey == key ? (SortDescending ? "  ▼" : "  ▲") : "";
 
     /// <summary>Every server name currently defined — the pool editor's membership choices.</summary>
     public IEnumerable<string> AllServerNames => _main.Servers.Items.Select(s => s.Name);
@@ -24,6 +36,7 @@ public partial class PoolsViewModel : ObservableObject
         Items.Clear();
         foreach (var p in pools) Items.Add(new PoolItemViewModel(p));
         Selected = Items.FirstOrDefault();
+        RefreshView();
     }
 
     public void Commit(PoolItemViewModel edited, PoolItemViewModel? original)
@@ -38,6 +51,7 @@ public partial class PoolsViewModel : ObservableObject
             if (i >= 0) Items[i] = edited; else Items.Add(edited);
         }
         Selected = edited;
+        RefreshView();
     }
 
     private bool HasSelection() => Selected is not null;
@@ -51,6 +65,48 @@ public partial class PoolsViewModel : ObservableObject
         {
             Items.Remove(s);
             Selected = Items.FirstOrDefault();
+            RefreshView();
         }
+    }
+
+    // ---- Filter + sort projection (Items -> Visible) ----
+
+    partial void OnFilterChanged(string value) => RefreshView();
+    partial void OnSortKeyChanged(string value) { NotifyHeaders(); RefreshView(); }
+    partial void OnSortDescendingChanged(bool value) { NotifyHeaders(); RefreshView(); }
+
+    private void NotifyHeaders()
+    {
+        OnPropertyChanged(nameof(NameHeader));
+        OnPropertyChanged(nameof(StrategyHeader));
+        OnPropertyChanged(nameof(MembersHeader));
+    }
+
+    [RelayCommand]
+    private void Sort(string key)
+    {
+        if (SortKey == key) SortDescending = !SortDescending;
+        else { SortKey = key; SortDescending = false; }
+    }
+
+    private bool Matches(PoolItemViewModel p) =>
+        Filter.Length == 0
+        || p.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || p.StrategyLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+        || p.MembersLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase);
+
+    private void RefreshView()
+    {
+        Func<PoolItemViewModel, string> key = SortKey switch
+        {
+            "Strategy" => p => p.StrategyLabel,
+            "Members" => p => p.MembersLabel,
+            _ => p => p.Name,
+        };
+        var filtered = Items.Where(Matches);
+        var ordered = SortDescending
+            ? filtered.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
+            : filtered.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+        ListProjection.Reproject(Visible, ordered, () => Selected, v => Selected = v);
     }
 }

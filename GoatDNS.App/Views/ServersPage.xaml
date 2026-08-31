@@ -10,37 +10,47 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Servers" Style="{StaticResource TitleTextBlockStyle}" />
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-            <Button Content="Add" Click="Add_Click" />
-            <Button Content="Edit" Click="Edit_Click" />
-            <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
-            <AppBarSeparator />
-            <Button Content="Test" Command="{x:Bind ViewModel.TestSelectedCommand}" />
-            <ProgressRing Width="18" Height="18" IsActive="{x:Bind ViewModel.IsTesting, Mode=OneWay}" VerticalAlignment="Center" />
-        </StackPanel>
+        <!-- One compact command row: actions on the left, live filter on the right. -->
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-        <!-- Import: from an sdns:// stamp, or from the bundled (vendored + rehosted) resolver lists -->
-        <StackPanel Grid.Row="2" Spacing="8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBox
-                    Width="460"
-                    PlaceholderText="sdns://…"
-                    Text="{x:Bind ViewModel.StampInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <Button Content="Import from stamp" Command="{x:Bind ViewModel.ImportStampCommand}" VerticalAlignment="Bottom" />
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <Button Content="Add" Click="Add_Click" />
+                <Button Content="Edit" Click="Edit_Click" />
+                <Button Content="Delete" Command="{x:Bind ViewModel.DeleteCommand}" />
+                <AppBarSeparator />
+                <Button Content="Test" Command="{x:Bind ViewModel.TestSelectedCommand}" />
+                <Button Content="Test all" Command="{x:Bind ViewModel.TestAllCommand}" />
+                <ProgressRing Width="18" Height="18" IsActive="{x:Bind ViewModel.IsTesting, Mode=OneWay}" VerticalAlignment="Center" />
+                <AppBarSeparator />
+                <DropDownButton Content="Import">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="From sdns:// stamp…" Click="ImportStamp_Click" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="Starter list" Command="{x:Bind ViewModel.ImportStarterCommand}" />
+                            <MenuFlyoutItem Text="Public resolvers" Command="{x:Bind ViewModel.ImportPublicResolversCommand}" />
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Import starter list" Command="{x:Bind ViewModel.ImportStarterCommand}" />
-                <Button Content="Import public resolvers" Command="{x:Bind ViewModel.ImportPublicResolversCommand}" />
-            </StackPanel>
-        </StackPanel>
 
-        <StackPanel Grid.Row="3" Spacing="4">
+            <TextBox
+                Grid.Column="1"
+                Width="260"
+                PlaceholderText="Filter servers…"
+                Text="{x:Bind ViewModel.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Spacing="4">
             <InfoBar
                 IsOpen="{x:Bind ViewModel.ResultShowInfo, Mode=OneWay}"
                 IsClosable="True"
@@ -53,8 +63,8 @@
                 Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}" />
         </StackPanel>
 
-        <!-- Columned table: Name · Protocol · Address/URL. -->
-        <Border Grid.Row="4" BorderThickness="1" CornerRadius="4"
+        <!-- Columned, sortable table (click a header to sort). Rows are green/red after a Test. -->
+        <Border Grid.Row="3" BorderThickness="1" CornerRadius="4"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -70,15 +80,21 @@
                         <ColumnDefinition Width="110" />
                         <ColumnDefinition Width="3*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource ColumnHeaderTextStyle}" />
-                    <TextBlock Grid.Column="1" Text="Protocol" Style="{StaticResource ColumnHeaderTextStyle}" />
-                    <TextBlock Grid.Column="2" Text="Address / URL" Style="{StaticResource ColumnHeaderTextStyle}" />
+                    <Button Grid.Column="0" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.NameHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Name" />
+                    <Button Grid.Column="1" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.ProtocolHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Protocol" />
+                    <Button Grid.Column="2" Style="{StaticResource ColumnHeaderButtonStyle}"
+                            Content="{x:Bind ViewModel.EndpointHeader, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.SortCommand}" CommandParameter="Endpoint" />
                 </Grid>
 
                 <ListView
                     Grid.Row="1"
                     SelectionMode="Single"
-                    ItemsSource="{x:Bind ViewModel.Items}"
+                    ItemsSource="{x:Bind ViewModel.Visible}"
                     SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}"
                     DoubleTapped="List_DoubleTapped">
                     <ListView.ItemContainerStyle>
@@ -89,15 +105,30 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:ServerItemViewModel">
-                            <Grid Padding="12,8" ColumnSpacing="12">
+                            <!-- Transparent background so the whole row (not just the text) is right-clickable. -->
+                            <Grid Padding="12,8" ColumnSpacing="12" Background="Transparent">
+                                <Grid.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Edit…" Click="RowEdit_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70F;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutItem Text="Test" Click="RowTest_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE9D2;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutSeparator />
+                                        <MenuFlyoutItem Text="Delete" Click="RowDelete_Click">
+                                            <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74D;" /></MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </Grid.ContextFlyout>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="2*" />
                                     <ColumnDefinition Width="110" />
                                     <ColumnDefinition Width="3*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind ProtocolLabel, Mode=OneWay}" VerticalAlignment="Center" Opacity="0.85" />
-                                <TextBlock Grid.Column="2" Text="{x:Bind Endpoint, Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" FontFamily="Consolas" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="0" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind ProtocolLabel, Mode=OneWay}" VerticalAlignment="Center" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
+                                <TextBlock Grid.Column="2" Text="{x:Bind Endpoint, Mode=OneWay}" VerticalAlignment="Center" FontFamily="Consolas" TextTrimming="CharacterEllipsis" Foreground="{x:Bind HealthBrush, Mode=OneWay}" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

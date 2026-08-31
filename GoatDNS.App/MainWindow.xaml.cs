@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window
     public void Start()
     {
         TrayIcon.ForceCreate();
+        ViewModel.ExitRequested += ExitApp; // Quit (stop service + exit) is driven from the view-model
         ViewModel.Start();
     }
 
@@ -79,7 +80,14 @@ public sealed partial class MainWindow : Window
 
     private void TrayOpen_Click(object sender, RoutedEventArgs e) => ShowFromTray();
 
-    private void TrayExit_Click(object sender, RoutedEventArgs e)
+    /// <summary>Tray "Quit": stop the service/interception, then exit (routed through the view-model).</summary>
+    private void TrayQuit_Click(object sender, RoutedEventArgs e) => ViewModel.QuitCommand.Execute(null);
+
+    /// <summary>Tray "Hide": just close the window to the tray (interception keeps running).</summary>
+    private void TrayExit_Click(object sender, RoutedEventArgs e) => ExitApp();
+
+    /// <summary>Actually tear down the app: drop the tray icon and close the window for real.</summary>
+    private void ExitApp()
     {
         _exiting = true;
         TrayIcon.Dispose(); // remove the tray icon before the process goes away

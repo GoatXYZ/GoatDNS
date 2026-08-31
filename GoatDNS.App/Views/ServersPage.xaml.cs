@@ -43,4 +43,44 @@ public sealed partial class ServersPage : Page
 
     private async void List_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         => await EditAsync();
+
+    // ---- Row context menu: select the right-clicked row, then reuse the toolbar actions ----
+
+    private ServerItemViewModel? MenuItemTarget(object sender) =>
+        (sender as FrameworkElement)?.DataContext as ServerItemViewModel;
+
+    private async void RowEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; await EditAsync(item); }
+    }
+
+    private void RowTest_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.TestSelectedCommand.Execute(null); }
+    }
+
+    private void RowDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (MenuItemTarget(sender) is { } item) { ViewModel.Selected = item; ViewModel.DeleteCommand.Execute(null); }
+    }
+
+    /// <summary>Import menu → sdns:// stamp: prompt for the stamp, then hand it to the view-model.</summary>
+    private async void ImportStamp_Click(object sender, RoutedEventArgs e)
+    {
+        var box = new TextBox { PlaceholderText = "sdns://…", Width = 440 };
+        var dialog = new ContentDialog
+        {
+            Title = "Import from stamp",
+            Content = box,
+            PrimaryButtonText = "Import",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            ViewModel.StampInput = box.Text;
+            ViewModel.ImportStampCommand.Execute(null);
+        }
+    }
 }
